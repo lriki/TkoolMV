@@ -5,6 +5,11 @@ var $plugins =
   {"name":"LMBS","status":true,"description":"","parameters":{}}
 ];
 
+/*
+[Note]
+    先頭背景変更
+        リビジョンカウント
+*/
 
 //LMBS_AnimationManager
 
