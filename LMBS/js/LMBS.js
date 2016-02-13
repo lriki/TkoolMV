@@ -73,9 +73,9 @@ LMBS_SceneGraph.clear = function() {
     this._objectList = [];
     this._physicsBodyList = [];
     this.camera = new LMBS_Camera();
-    this.camera.position.x = 0;
+    this.camera.position.x = 10;
     this.camera.position.y = 0;
-    this.camera.position.z = 10;
+    this.camera.position.z = -10;
 }
 
 LMBS_SceneGraph.addObject = function(obj) {
@@ -101,14 +101,8 @@ LMBS_SceneGraph.update = function() {
 
     this.camera.updateMatrix();
 
-  //  var v = new THREE.Vector3(0, 0, 0);
-    //var v2 = new THREE.Vector3(0, 0, 0);
-    //this.camera.transformPosition(v, v2);
-    //console.log(v2.x);
-
 
     this.world.Step(1 / 60, 10, 10);
-    //this.world.DrawDebugData();
     this.world.ClearForces();
     this._objectList.forEach(function(obj){
         obj.onUpdate();
@@ -134,15 +128,15 @@ LMBS_Camera.prototype.constructor = LMBS_Camera;
  * constructor
  */
 LMBS_Camera.prototype.initialize = function() {
-    this.position = new THREE.Vector3(0, 0, 1000);
-    this.viewMatrix = new THREE.Matrix4();
-    this.projMatrix = new THREE.Matrix4();
-    this.viewProjMatrix = new THREE.Matrix4();
+    this.position = new LMBS_Vector3(0, 0, -1000);
+    this.viewMatrix = new LMBS_Matrix();
+    this.projMatrix = new LMBS_Matrix();
+    this.viewProjMatrix = new LMBS_Matrix();
 
-    this._lookAt = new THREE.Vector3();
-    this._up = new THREE.Vector3(0, 1, 0);
-    this._scalingWork1 = new THREE.Vector3(0, 1, 0);
-    this._scalingWork2 = new THREE.Vector3(0, 1, 0);
+    this._lookAt = new LMBS_Vector3();
+    this._up = new LMBS_Vector3(0, 1, 0);
+    this._scalingWork1 = new LMBS_Vector3(0, 1, 0);
+    this._scalingWork2 = new LMBS_Vector3(0, 1, 0);
 }
 
 /**
@@ -152,71 +146,40 @@ LMBS_Camera.prototype.updateMatrix = function() {
     this._lookAt.y = this.position.y;
     this._lookAt.z = 0;
     //this.viewMatrix.lookAt(this.position, this._lookAt, this._up);
-    this.makeLookAtRH(this.position, this._lookAt, this._up, this.viewMatrix);
-    this.projMatrix.makePerspective(75, Graphics.width / Graphics.height, 1, 10000);
+    //this.makeLookAtRH(this.position, this._lookAt, this._up, this.viewMatrix);
+    this.viewMatrix.makeLookAtLH(this.position, this._lookAt, this._up);
+    this.projMatrix.makePerspectiveLH(0.5, Graphics.width / Graphics.height, 1, 10000);
     // 乗算の順序に注意
-    this.viewProjMatrix.multiplyMatrices(this.projMatrix, this.viewMatrix);
+    this.viewProjMatrix.multiply(this.viewMatrix, this.projMatrix);
+    console.log(this.viewProjMatrix.elements);
 }
 
 /**
- *  @param  inPos {THREE.Vector3}
- *  @param  outPos {THREE.Vector3}
+ *  @param  inPos {LMBS_Vector3}
+ *  @param  outPos {LMBS_Vector3}
  */
 LMBS_Camera.prototype.transformPosition = function(inPos, outPos) {
-    outPos.copy(inPos);
-    outPos.applyMatrix4(this.viewProjMatrix);
-
+    //outPos.copy(inPos);
+    //outPos.applyMatrix4(this.viewProjMatrix);
+    outPos.transformCoord(inPos, this.viewProjMatrix);
     // transformCoord
-    var e = this.viewProjMatrix.elements;
-    var w = 1.0 / ((((inPos.x * e[3]) + (inPos.y * e[7])) + (inPos.z * e[11])) + e[15]);
-    outPos.x *= w;
-    outPos.y *= w;
-    outPos.z *= w;
+    //var e = this.viewProjMatrix.elements;
+    //var w = 1.0 / ((((inPos.x * e[3]) + (inPos.y * e[7])) + (inPos.z * e[11])) + e[15]);
+    //outPos.x *= w;
+    //outPos.y *= w;
+    //outPos.z *= w;
 
-
+    // transformCoord した outPos は -1～1 の範囲(スクリーン座標空間)となっている。
+    // これをウィンドウ座標空間に直す。
     outPos.x = (outPos.x + 1) / 2 * Graphics.width;
     outPos.y = (outPos.y + 1) / 2 * Graphics.height;
     outPos.y *= -1;
     outPos.y += Graphics.height;
+    //console.log(outPos.y );
 }
-
-LMBS_Camera.prototype.makeLookAtRH = function(eye, target, up, outMatrix) {
-    var x = new THREE.Vector3();
-    var y = new THREE.Vector3();
-    var z = new THREE.Vector3();
-
-    var te = outMatrix.elements;
-
-    z.subVectors( eye, target ).normalize();
-
-    if ( z.lengthSq() === 0 ) {
-    	z.z = 1;
-    }
-
-    x.crossVectors( up, z ).normalize();
-
-    if ( x.lengthSq() === 0 ) {
-    	z.x += 0.0001;
-    	x.crossVectors( up, z ).normalize();
-    }
-
-    y.crossVectors( z, x );
-
-    // オリジナルとは転置してある
-    te[ 0 ] = x.x; te[ 1 ] = y.x; te[ 2 ] = z.x;
-    te[ 4 ] = x.y; te[ 5 ] = y.y; te[ 6 ] = z.y;
-    te[ 8 ] = x.z; te[ 9 ] = y.z; te[ 10 ] = z.z;
-
-    te[ 12 ] = -(x.x * eye.x + x.y * eye.y + x.z * eye.z);
-    te[ 13 ] = -(y.x * eye.x + y.y * eye.y + y.z * eye.z);
-    te[ 14 ] = -(z.x * eye.x + z.y * eye.y + z.z * eye.z);
-    te[ 15 ] = 1;
-}
-
 
 /**
- *  @param  inPos {THREE.Vector3}
- *  @param  outPos {THREE.Vector3}
+ *  @param  pos {LMBS_Vector3}
  */
 LMBS_Camera.prototype.calcScale = function(pos) {
     // TODO: ちょっとものぐさ。視線に対して垂直にずらしたベクトルを使うのがベスト。
@@ -224,8 +187,8 @@ LMBS_Camera.prototype.calcScale = function(pos) {
     this._scalingWork1.set(pos.x, pos.y, pos.z);
     this._scalingWork2.set(pos.x, pos.y + 1, pos.z);
 
-    var v1 = new THREE.Vector3();
-    var v2 = new THREE.Vector3();
+    var v1 = new LMBS_Vector3();
+    var v2 = new LMBS_Vector3();
     this.transformPosition(this._scalingWork1, v1);
     this.transformPosition(this._scalingWork2, v2);
   //  this._scalingWork1.applyMatrix4(this.viewProjMatrix);
@@ -357,21 +320,12 @@ LMBS_Battler.prototype.onUpdate = function() {
 
 
 
-    var v = new THREE.Vector3(this.transform.tx, this.transform.ty, 0);
-    var v2 = new THREE.Vector3();
+    var v = new LMBS_Vector3(this.transform.tx, this.transform.ty, 0);
+    var v2 = new LMBS_Vector3();
     LMBS_SceneGraph.camera.transformPosition(v, v2);
     var scale = LMBS_SceneGraph.camera.calcScale(v);
-    console.log(scale);
     this._visual.mainSprite.x = v2.x;//this.transform.tx;
     this._visual.mainSprite.y = v2.y;//this.transform.ty;
-
-
-/*
-    this.rigidBodyGraphics.clear();
-    this.rigidBodyGraphics.lineStyle(2, 0xFF00FF);  //(thickness, color)
-    this.rigidBodyGraphics.drawCircle(this.rigidBody.GetPosition().x, this.rigidBody.GetPosition().y, 10);   //(x,y,radius)
-    this.rigidBodyGraphics.endFill();
-*/
 
 
     // 向き

@@ -97,8 +97,8 @@ LMBS_Body.prototype.debugDraw = function(camera, g) {
     t.apply(inPt, ptList[4]);
 
     // さらにビュー・プロジェクション変換
-    var tmpVec1 = new THREE.Vector3();
-    var tmpVec2 = new THREE.Vector3();
+    var tmpVec1 = new LMBS_Vector3();
+    var tmpVec2 = new LMBS_Vector3();
     for (var i = 0; i < ptList.length; ++i) {
         tmpVec1.x = ptList[i].x;
         tmpVec1.y = ptList[i].y;

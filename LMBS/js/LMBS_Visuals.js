@@ -5,7 +5,7 @@
  *  @class LMBS_Visual
  */
 function LMBS_Visual() { this.initialize.apply(this, arguments); }
-LMBS_Visual.prototype.constructor = LMBS_Vector2;
+LMBS_Visual.prototype.constructor = LMBS_Visual;
 
 /**
  * constructor
