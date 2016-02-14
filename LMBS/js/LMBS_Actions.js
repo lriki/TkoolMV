@@ -125,10 +125,10 @@ LMBS_WalkAction.prototype.onUserInput = function() {
         this.battler.changeAction(new LMBS_IdleAction());
     }
     else if (this.battler.direction == LMBS_Battler.DIRECTION.LEFT) {
-        this.battler.mainBody.applyForce(-10, 0);
+        this.battler.mainBody.applyMovement(-1, 0);
     }
     else if (this.battler.direction == LMBS_Battler.DIRECTION.RIGHT) {
-        this.battler.mainBody.applyForce(10, 0);
+        this.battler.mainBody.applyMovement(1, 0);
     }
 }
 

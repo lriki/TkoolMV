@@ -88,6 +88,16 @@ LMBS_Vector3.prototype.lengthSq = function() {
 }
 
 /**
+ * このベクトルと指定したベクトルの距離の2乗を返す。
+ */
+LMBS_Vector3.prototype.distanceSq = function(v) {
+    dx = this.x - v.x;
+    dy = this.y - v.y;
+    dz = this.z - v.z;
+    return dx * dx + dy * dy + dz * dz;
+}
+
+/**
  * このベクトルを正規化する。
  */
 LMBS_Vector3.prototype.normalize = function() {

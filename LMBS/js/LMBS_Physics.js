@@ -42,6 +42,15 @@ LMBS_Body.prototype.applyForce = function(x, y) {
   this._body.ApplyForce(new Box2D.Common.Math.b2Vec2(x, y), this._body.GetWorldCenter());
 }
 
+/**
+ *
+ */
+LMBS_Body.prototype.applyMovement = function(x, y) {
+    this._body.SetLinearVelocity(new Box2D.Common.Math.b2Vec2(x, y));
+    if (this._body.IsAwake() == false) {
+        this._body.SetAwake(true);
+    }
+}
 
 /**
  *  @param  camera {LMBS_Camera}
@@ -145,7 +154,7 @@ LMBS_BoxBody.prototype.constructor = LMBS_BoxBody;
 
      var fixDef = new Box2D.Dynamics.b2FixtureDef;
      fixDef.density = mass;  // 密度
-     fixDef.friction = 0.1;   // 摩擦
+     fixDef.friction = 0.5;   // 摩擦
      fixDef.restitution = 0.0;  // 跳ね返りはシステム的に全くなし
      fixDef.shape = this._shape;
 
