@@ -76,6 +76,13 @@ LMBS_IdleAction.prototype.onUserInput = function() {
         this.battler.direction = LMBS_Battler.DIRECTION.RIGHT;
         this.battler.changeAction(new LMBS_WalkAction());
     }
+
+    // ターゲットに向く
+    var target = this.battler.getActionTargetBattlerObject();
+    if (target != null) {
+        var d = target.position.x - this.battler.position.x;
+        this.battler.direction = d / Math.abs(d); // 正規化。1Dなのでこれでいい。
+    }
 }
 
 /**
@@ -118,17 +125,20 @@ LMBS_WalkAction.prototype.onAttached = function() {
 }
 
 /**
+ *  override
  */
 LMBS_WalkAction.prototype.onUserInput = function() {
     LMBS_Action.prototype.onUserInput.call(this);
-    if (Input.dir4 == 0) {
+    var vel = this.battler.direction;
+    if (Input.isPressed('left')) {
+        this.battler.mainBody.applyMovement(-vel, 0);
+    }
+    else if (Input.isPressed('right')) {
+        this.battler.mainBody.applyMovement(vel, 0);
+    }
+    else {
+        // キーが押されていなければ Idle 状態へ
         this.battler.changeAction(new LMBS_IdleAction());
-    }
-    else if (this.battler.direction == LMBS_Battler.DIRECTION.LEFT) {
-        this.battler.mainBody.applyMovement(-1, 0);
-    }
-    else if (this.battler.direction == LMBS_Battler.DIRECTION.RIGHT) {
-        this.battler.mainBody.applyMovement(1, 0);
     }
 }
 

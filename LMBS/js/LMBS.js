@@ -27,6 +27,17 @@ Sprite_Battler.prototype.updatePosition = function() {
 };
 
 
+//=============================================================================
+/**
+ *  設定
+ *  @class LMBS_Settings
+ */
+function LMBS_Settings() {
+    throw new Error('This is a static class');
+}
+
+LMBS_Settings.keySelectTarget = 'shift';  // ターゲット選択ボタン
+
 
 //=============================================================================
 // LMBS_SceneGraph
@@ -90,25 +101,7 @@ LMBS_SceneGraph.addObject = function(obj) {
     this._objectList.push(obj);
 }
 
-LMBS_SceneGraph.update = function() {
-
-    if (Input.isPressed('pageup')) {
-        this.camera.position.x += 0.25;
-    }
-    if (Input.isPressed('pagedown')) {
-        this.camera.position.x -= 0.25;
-    }
-    if (Input.isPressed('control')) {
-        this.camera.position.z -= 0.25;
-    }
-    if (Input.isPressed('shift')) {
-        this.camera.position.z += 0.25;
-    }
-
-
-
-    this.camera.updateMatrix();
-
+LMBS_SceneGraph.updateWorld = function() {
 
     this.world.Step(1 / 60, 10, 10);
     this.world.ClearForces();
@@ -121,6 +114,27 @@ LMBS_SceneGraph.update = function() {
     this._physicsBodyList.forEach(function(body){
         body.debugDraw(this.camera, this._debugGraphics);
     }, this);
+}
+
+/**
+ * カメラの更新。ターゲット選択中等、カメラだけ移動させたいときもあるので、オブジェクトとは分ける。
+ */
+LMBS_SceneGraph.updateCamera = function() {
+  /*
+    if (Input.isPressed('pageup')) {
+        this.camera.position.x += 0.25;
+    }
+    if (Input.isPressed('pagedown')) {
+        this.camera.position.x -= 0.25;
+    }
+    if (Input.isPressed('control')) {
+        this.camera.position.z -= 0.25;
+    }
+    if (Input.isPressed('shift')) {
+        this.camera.position.z += 0.25;
+    }
+    */
+    this.camera.updateMatrix();
 }
 
 //=============================================================================
@@ -241,8 +255,8 @@ LMBS_Battler.prototype = Object.create(LMBS_Object.prototype);
 LMBS_Battler.prototype.constructor = LMBS_Battler;
 
 LMBS_Battler.DIRECTION = {
-  LEFT      : 0,
-  RIGHT     : 1,
+  LEFT      : -1.0,
+  RIGHT     :  1.0,
 };
 
 /**
@@ -292,7 +306,6 @@ LMBS_Battler.prototype.forceGroup = function() {
  *
  */
 LMBS_Battler.prototype.setActionTargetBattlerObject = function(battlerObj) {
-    console.log(battlerObj);
     this._actionTarget = battlerObj;
 }
 
@@ -324,13 +337,8 @@ LMBS_Battler.prototype.onUpdate = function() {
 
 
     // 向き
-    var scaleX = 1;
-    if (this.direction == LMBS_Battler.DIRECTION.LEFT) {
-        scaleX = 1;
-    }
-    else {
-        this._visual.mainSprite.scale.x = -1;
-    }
+    var scaleX = -this.direction;
+    this._visual.mainSprite.scale.x = scaleX;
 
     // 表示したいピクセルサイズで割ることで、ワールド座標系上のスケールを、ウィンドウ座標系上のスケールに変換する
     this._visual.mainSprite.scale.x = (scaleX * scale) / this._visual.mainSprite.width;
@@ -478,6 +486,7 @@ BattleManager.initMembers = function() {
     this.userOperationActorIndex = 0; // ユーザー入力で操作するパーティ内のアクター番号
     this._battlerObjects = [];
     this._actorBattlerObjects = [];
+    this._lmbsPhase = 'Main';
 }
 
 /**
@@ -545,9 +554,89 @@ BattleManager.findNearBattlerObject = function(pos, forceGroup) {
 
 /**
  *
+ *  @param  pos {LMBS_Vector3}  ワールド空間上の位置
+ *  @param  xDir {LMBS_Vector3}  探したい方向
+ */
+BattleManager.findSideBattlerObject = function(pos, xDir, forceGroup) {
+    var obj = null;
+    var d = 0;
+    var list = this._battlerObjects;
+    var candidates = [];
+    // 同一勢力を候補として取り出す
+    for (var i = 0; i < list.length; i++) {
+        if ((list[i].forceGroup() & forceGroup) != 0) {
+            candidates.push(list[i]);
+        }
+    }
+    // X位置で昇順ソート
+    candidates.sort(function(a, b){
+        if ( a.position.x < b.position.x ) return -1;
+        if ( a.position.x > b.position.x ) return 1;
+        return 0;
+    });
+    // 右側に向かって調べたい
+    if (xDir > 0) {
+        for (var next = 0; next < candidates.length; next++) {
+            if (pos.x < candidates[next].position.x) {
+                return candidates[next];
+            }
+        }
+        return candidates[0]; // 見つからなかったので、1順して一番左のモノ
+    }
+    // 左側に向かって調べたい
+    else {
+        for (var next = candidates.length - 1; next >= 0; next--) {
+            if (candidates[next].position.x) {
+                return candidates[next];
+            }
+        }
+        return candidates[candidates.length - 1]; // 見つからなかったので、1順して一番右のモノ
+    }
+    return null;
+}
+
+/**
+ *
  */
 BattleManager.update = function() {
-    LMBS_SceneGraph.update();
+    // 現在のフェーズで分岐
+    switch (this._lmbsPhase) {
+    case 'Main':
+        this.updateMain();
+        break;
+    case 'TargetSelection':
+        this.updateTargetSelection();
+        break;
+    }
+}
+
+/**
+ *
+ */
+BattleManager.updateMain = function() {
+    LMBS_SceneGraph.updateWorld();
+    LMBS_SceneGraph.updateCamera();
+    // ターゲット選択キーが押されていたら選択フェーズへ
+    if (Input.isPressed(LMBS_Settings.keySelectTarget)) {
+        this._lmbsPhase = 'TargetSelection';
+
+        // ターゲット切り替え
+        var player = this.getUserOperatingActor();
+        var newTarget = this.findSideBattlerObject(player.getActionTargetBattlerObject().position, 1, ~player.forceGroup());
+        player.setActionTargetBattlerObject(newTarget);
+    }
+}
+
+/**
+ *
+ */
+BattleManager.updateTargetSelection = function() {
+    // カメラは移動したい
+    LMBS_SceneGraph.updateCamera();
+    // キーが離されていたら Main に戻る
+    if (!Input.isPressed(LMBS_Settings.keySelectTarget)) {
+        this._lmbsPhase = 'Main';
+    }
 }
 
 //=============================================================================
