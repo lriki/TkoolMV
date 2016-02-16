@@ -5,6 +5,14 @@ var $plugins =
   {"name":"LMBS＿Motion","status":true,"description":"","parameters":{}}
 ];
 
+
+
+LMBS_SupportVisualType = {
+    SvSprite      : 'SvSprite',
+    Picture       : 'Picture',
+    SpriteStudio  : 'SpriteStudio',  // TODO
+};
+
 //=============================================================================
 // LMBS_MotionManager
 //=============================================================================
@@ -17,8 +25,8 @@ LMBS_MotionManager._motions   = {};
 /**
  */
 LMBS_MotionManager.setup = function() {
-    this.registerMotion(new LMBS_BasicWaitMotion("basic_wait"));
-    this.registerMotion(new LMBS_BasicMoveMotion("basic_move"));
+    this.registerMotion(new LMBS_Motion_Idle_SvSprite("basic_wait"));
+    this.registerMotion(new LMBS_Motion_WalkFront_SvSprite("basic_move"));
 }
 
 /**
@@ -48,7 +56,13 @@ LMBS_Motion.prototype.initialize = function(name) {
     this.name = name;
 }
 
-//-----------------------------------------------------------------------------
+/**
+ * このモーションがサポートする適用先のビットフラグ。サブクラスでオーバーライドする。
+ */
+LMBS_Motion.prototype.getSupportVisualType = function() {
+    return 0;
+};
+
 /**
  * @param battler     : LMBS_Battler
  * @param frameCount
@@ -73,37 +87,47 @@ LMBS_ScriptMotion.prototype.initialize = function(name) {
 //}
 
 //=============================================================================
-// LMBS_BasicWaitMotion
+// LMBS_Motion_Idle_SvSprite
 //-----------------------------------------------------------------------------
 //
 //=============================================================================
-function LMBS_BasicWaitMotion() { this.initialize.apply(this, arguments); }
-LMBS_BasicWaitMotion.prototype = Object.create(LMBS_Motion.prototype);
-LMBS_BasicWaitMotion.prototype.constructor = LMBS_BasicWaitMotion;
-LMBS_BasicWaitMotion.prototype.initialize = function(name) {
+function LMBS_Motion_Idle_SvSprite() { this.initialize.apply(this, arguments); }
+LMBS_Motion_Idle_SvSprite.prototype = Object.create(LMBS_Motion.prototype);
+LMBS_Motion_Idle_SvSprite.prototype.constructor = LMBS_Motion_Idle_SvSprite;
+LMBS_Motion_Idle_SvSprite.prototype.initialize = function(name) {
     LMBS_Motion.prototype.initialize.call(this, name);
 }
 
-//-----------------------------------------------------------------------------
-LMBS_BasicWaitMotion.prototype.update = function(battler, frameCount) {
+/** override */
+LMBS_Motion_Idle_SvSprite.prototype.getSupportVisualType = function() {
+    return LMBS_SupportVisualType.SvSprite;
+};
+
+/** override */
+LMBS_Motion_Idle_SvSprite.prototype.update = function(battler, frameCount) {
     var pattern = Math.floor(frameCount / 20) % 3;
     battler._visual.mainSprite.setFrame(pattern * 64, 0, 64, 64);
 }
 
 //=============================================================================
-// LMBS_BasicMoveMotion
+// LMBS_Motion_WalkFront_SvSprite
 //-----------------------------------------------------------------------------
 //
 //=============================================================================
-function LMBS_BasicMoveMotion() { this.initialize.apply(this, arguments); }
-LMBS_BasicMoveMotion.prototype = Object.create(LMBS_Motion.prototype);
-LMBS_BasicMoveMotion.prototype.constructor = LMBS_BasicMoveMotion;
-LMBS_BasicMoveMotion.prototype.initialize = function(name) {
+function LMBS_Motion_WalkFront_SvSprite() { this.initialize.apply(this, arguments); }
+LMBS_Motion_WalkFront_SvSprite.prototype = Object.create(LMBS_Motion.prototype);
+LMBS_Motion_WalkFront_SvSprite.prototype.constructor = LMBS_Motion_WalkFront_SvSprite;
+LMBS_Motion_WalkFront_SvSprite.prototype.initialize = function(name) {
     LMBS_Motion.prototype.initialize.call(this, name);
 }
 
-//-----------------------------------------------------------------------------
-LMBS_BasicMoveMotion.prototype.update = function(battler, frameCount) {
+/** override */
+LMBS_Motion_WalkFront_SvSprite.prototype.getSupportVisualType = function() {
+    return LMBS_SupportVisualFlags.SvSprite;
+};
+
+/** override */
+LMBS_Motion_WalkFront_SvSprite.prototype.update = function(battler, frameCount) {
     //var pattern = Math.floor(frameCount / 20) % 3;
     //battler.mainSprite.setFrame(pattern * 64, 0, 64, 64);
   //  console.log(pattern * 64);

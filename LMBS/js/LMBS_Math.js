@@ -239,7 +239,11 @@ LMBS_Matrix.prototype.multiply = function(a, b) {
  * 各関数の引数は、t:現在時間(0.0～d) b:開始値 c:値の変化量 (目標値-開始値) d:変化にかける時間
  * @class LMBS_Easing
  */
- LMBS_Easing.linearTween = function (t, b, c, d) {
+ function LMBS_Easing() {
+     throw new Error('This is a static class');
+ }
+
+LMBS_Easing.linearTween = function (t, b, c, d) {
 	return c*t/d + b;
 };
 
@@ -315,48 +319,48 @@ LMBS_Easing.easeInOutQuint = function (t, b, c, d) {
 };
 
 LMBS_Easing.easeInSine = function (t, b, c, d) {
-	return -c * LMBS_Easing.cos(t/d * (LMBS_Easing.PI/2)) + c + b;
+	return -c * Math.cos(t/d * (Math.PI/2)) + c + b;
 };
 
 LMBS_Easing.easeOutSine = function (t, b, c, d) {
-	return c * LMBS_Easing.sin(t/d * (LMBS_Easing.PI/2)) + b;
+	return c * Math.sin(t/d * (Math.PI/2)) + b;
 };
 
 LMBS_Easing.easeInOutSine = function (t, b, c, d) {
-	return -c/2 * (LMBS_Easing.cos(LMBS_Easing.PI*t/d) - 1) + b;
+	return -c/2 * (Math.cos(Math.PI*t/d) - 1) + b;
 };
 
 LMBS_Easing.easeInExpo = function (t, b, c, d) {
-	return c * LMBS_Easing.pow( 2, 10 * (t/d - 1) ) + b;
+	return c * Math.pow( 2, 10 * (t/d - 1) ) + b;
 };
 
 LMBS_Easing.easeOutExpo = function (t, b, c, d) {
-	return c * ( -LMBS_Easing.pow( 2, -10 * t/d ) + 1 ) + b;
+	return c * ( -Math.pow( 2, -10 * t/d ) + 1 ) + b;
 };
 
 LMBS_Easing.easeInOutExpo = function (t, b, c, d) {
 	t /= d/2;
-	if (t < 1) return c/2 * LMBS_Easing.pow( 2, 10 * (t - 1) ) + b;
+	if (t < 1) return c/2 * Math.pow( 2, 10 * (t - 1) ) + b;
 	t--;
-	return c/2 * ( -LMBS_Easing.pow( 2, -10 * t) + 2 ) + b;
+	return c/2 * ( -Math.pow( 2, -10 * t) + 2 ) + b;
 };
 
 LMBS_Easing.easeInCirc = function (t, b, c, d) {
 	t /= d;
-	return -c * (LMBS_Easing.sqrt(1 - t*t) - 1) + b;
+	return -c * (Math.sqrt(1 - t*t) - 1) + b;
 };
 
 LMBS_Easing.easeOutCirc = function (t, b, c, d) {
 	t /= d;
 	t--;
-	return c * LMBS_Easing.sqrt(1 - t*t) + b;
+	return c * Math.sqrt(1 - t*t) + b;
 };
 
 LMBS_Easing.easeInOutCirc = function (t, b, c, d) {
 	t /= d/2;
-	if (t < 1) return -c/2 * (LMBS_Easing.sqrt(1 - t*t) - 1) + b;
+	if (t < 1) return -c/2 * (Math.sqrt(1 - t*t) - 1) + b;
 	t -= 2;
-	return c/2 * (LMBS_Easing.sqrt(1 - t*t) + 1) + b;
+	return c/2 * (Math.sqrt(1 - t*t) + 1) + b;
 };
 
 //=============================================================================
@@ -370,13 +374,13 @@ LMBS_EasingValue.prototype.constructor = LMBS_EasingValue;
 /**
  * constructor
  */
-LMBS_EasingValue.prototype.initialize = function() {
-    this._startValue = 0;
-    this._targetValue = 0;
-    this._value = 0;
-	this._currentTime = 0;
-	this._totalTime = 0;
-    this._easing = LMBS_Easing.linearTween;
+LMBS_EasingValue.prototype.initialize = function(value, easingFunc) {
+    this._startValue = value || 0;
+    this._targetValue = value || 0;
+    this._value = value || 0;
+  	this._currentTime = 0;
+  	this._totalTime = 0;
+    this._easing = easingFunc || LMBS_Easing.linearTween;
 };
 
 /**
@@ -387,21 +391,32 @@ LMBS_EasingValue.prototype.setEasingFunction = function(easingFunc) {
 };
 
 /**
+ * 値を設定する
+ */
+LMBS_EasingValue.prototype.setValue = function(value) {
+    this._startValue = value;
+  	this._targetValue = value;
+    this._value = value;
+  	this._totalTime = 0;
+  	this._currentTime = 0;
+};
+
+/**
  * 値の遷移を開始します。
  */
 LMBS_EasingValue.prototype.start = function(startValue, targetValue, time) {
     this._startValue = startValue;
-	this._targetValue = targetValue;
-	this._totalTime = time;
-	this._currentTime = 0.0;
-	this.setTime(this._currentTime);
+  	this._targetValue = targetValue;
+  	this._totalTime = time;
+  	this._currentTime = 0.0;
+  	this.setTime(this._currentTime);
 };
 
 /**
  * 値の遷移を開始します。開始として現在の値を使用します。
  */
 LMBS_EasingValue.prototype.startAt = function(targetValue, time) {
-    this._startValue = this._value;
+  this._startValue = this._value;
 	this._targetValue = targetValue;
 	this._totalTime = time;
 	this._currentTime = 0.0;
@@ -441,7 +456,7 @@ LMBS_EasingValue.prototype.isFinished = function() {
 };
 
 LMBS_EasingValue.prototype._updateValue = function() {
-    if (this._currentTime >= this._totalTime)
+  if (this._currentTime >= this._totalTime)
 	{
 		this._value = m_targetValue;
 	}

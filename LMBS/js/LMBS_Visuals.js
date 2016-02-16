@@ -79,6 +79,44 @@ LMBS_Visual.prototype.constructor = LMBS_Visual;
  * constructor
  */
 LMBS_Visual.prototype.initialize = function() {
+    LMBS_SceneGraph.addVisual(this);
+    this._position = new LMBS_Vector3();
+    this._direction = 1;
+};
+
+/**
+ *  ワールド空間上の座標を設定する。
+ *  @param pos {LMBS_Vector3}
+ */
+LMBS_Visual.prototype.setPosition = function(pos) {
+    this._position.copy(pos);
+};
+
+/**
+ *  ワールド空間上の向きを設定する
+ */
+LMBS_Visual.prototype.setDirection = function(direction) {
+    this._direction = direction;
+};
+
+/**
+ *  座標の更新。カメラ位置を考慮し、スプライトの姿勢を決定する。
+ *  ここではアニメーションは遷移させない。
+ */
+LMBS_Visual.prototype.updateCoordinate = function() {
+    var v2 = new LMBS_Vector3();
+    LMBS_SceneGraph.camera.transformPosition(this._position, v2);
+    var scale = LMBS_SceneGraph.camera.calcScale(this._position);
+    this.mainSprite.x = v2.x;//this.transform.tx;
+    this.mainSprite.y = v2.y;//this.transform.ty;
+
+    // 向き
+    var scaleX = -this._direction;
+    this.mainSprite.scale.x = scaleX;
+
+    // 表示したいピクセルサイズで割ることで、ワールド座標系上のスケールを、ウィンドウ座標系上のスケールに変換する
+    this.mainSprite.scale.x = (scaleX * scale) / this.mainSprite.width;
+    this.mainSprite.scale.y = scale / this.mainSprite.height;
 };
 
 //=============================================================================
@@ -94,11 +132,11 @@ LMBS_AnimateSpliteVisual.prototype.constructor = LMBS_AnimateSpliteVisual;
 /**
  * constructor
  */
-LMBS_AnimateSpliteVisual.prototype.initialize = function() {
-    LMBS_Visual.prototype.initialize.call(this, name);
+LMBS_AnimateSpliteVisual.prototype.initialize = function(battlerName) {
+    LMBS_Visual.prototype.initialize.call(this);
 
     this.mainSprite = new LMBS_Sprite_Battler();
-    this.mainSprite.bitmap = ImageManager.loadSvActor("Actor1_1");
+    this.mainSprite.bitmap = ImageManager.loadSvActor(battlerName);
     this.mainSprite.setFrame(0, 0, 64, 64);
     this.mainSprite.visible = true;
     this.mainSprite.anchor.x = 0.5;
@@ -119,7 +157,7 @@ LMBS_PictureSpliteVisual.prototype.constructor = LMBS_PictureSpliteVisual;
  * constructor
  */
 LMBS_PictureSpliteVisual.prototype.initialize = function() {
-    LMBS_Visual.prototype.initialize.call(this, name);
+    LMBS_Visual.prototype.initialize.call(this);
 
     this.mainSprite = new Sprite();
     this.mainSprite.bitmap = ImageManager.loadSvActor("Actor1_1");

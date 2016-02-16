@@ -21,6 +21,11 @@ LMBS_ForceGroup = {
 };
 
 
+LMBS_Direction = {
+  Left      : -1.0,
+  Right     :  1.0,
+};
+
 Sprite_Battler.prototype.updatePosition = function() {
   //  this.x = this._battler.transform.tx;
     this.y = 100;
@@ -51,6 +56,7 @@ LMBS_SceneGraph.UNIT_PIXEL_SIZE = 64;
 
 LMBS_SceneGraph._objectList   = [];
 LMBS_SceneGraph._physicsBodyList   = [];
+LMBS_SceneGraph._visualList   = [];
 LMBS_SceneGraph._camera       = null;
 
 LMBS_SceneGraph.initialize = function() {
@@ -91,14 +97,16 @@ LMBS_SceneGraph.setup = function(viewportSprite) {
 LMBS_SceneGraph.clear = function() {
     this._objectList = [];
     this._physicsBodyList = [];
+    this._visualList = [];
     this.camera = new LMBS_Camera();
-    this.camera.position.x = 10;
-    this.camera.position.y = 0;
-    this.camera.position.z = -10;
+    this.camera.setPosition(10, 0, -10);
 }
 
 LMBS_SceneGraph.addObject = function(obj) {
     this._objectList.push(obj);
+}
+LMBS_SceneGraph.addVisual = function(obj) {
+    this._visualList.push(obj);
 }
 
 LMBS_SceneGraph.updateWorld = function() {
@@ -135,6 +143,10 @@ LMBS_SceneGraph.updateCamera = function() {
     }
     */
     this.camera.updateMatrix();
+
+    this._visualList.forEach(function(obj){
+        obj.updateCoordinate();
+    });
 }
 
 //=============================================================================
@@ -154,7 +166,12 @@ LMBS_Camera.Mode = {
  * constructor
  */
 LMBS_Camera.prototype.initialize = function() {
-    this.position = new LMBS_Vector3(0, 0, -1000);
+    this._position = new LMBS_Vector3(0, 0, -1000);
+
+    this._positionX = new LMBS_EasingValue(0, LMBS_Easing.easeOutExpo);
+    this._positionY = new LMBS_EasingValue(0, LMBS_Easing.easeOutExpo);
+    this._positionZ = new LMBS_EasingValue(0, LMBS_Easing.easeOutExpo);
+
     this.viewMatrix = new LMBS_Matrix();
     this.projMatrix = new LMBS_Matrix();
     this.viewProjMatrix = new LMBS_Matrix();
@@ -169,6 +186,22 @@ LMBS_Camera.prototype.initialize = function() {
 
 /**
  */
+LMBS_Camera.prototype.setPosition = function(x, y, z) {
+    this._positionX.setValue(x);
+    this._positionY.setValue(y);
+    this._positionZ.setValue(z);
+}
+
+/**
+ */
+LMBS_Camera.prototype.moveTo = function(x, y, z) {
+    this._positionX.startAt(x, 20);
+    this._positionY.startAt(y, 20);
+    this._positionZ.startAt(z, 20);
+}
+
+/**
+ */
 LMBS_Camera.prototype.updateMatrix = function() {
 
     var fov = Math.PI / 3;
@@ -176,17 +209,25 @@ LMBS_Camera.prototype.updateMatrix = function() {
     if (this._mode == LMBS_Camera.Mode.TargetTracking) {
         var player = BattleManager.getUserOperatingActor();
         var enemy = player.getActionTargetBattlerObject();
-        var hd = (enemy.position.x - player.position.x) / 2
-        this.position.x = player.position.x + hd;
-        this.position.z = -Math.tan(fov) * Math.abs(hd);
+        var hd = (enemy.position.x - player.position.x) / 2;
+        this.moveTo(player.position.x + hd, 0, -Math.tan(fov) * Math.abs(hd));
+        //this._position.x = player.position.x + hd;
+        //this._position.z = -Math.tan(fov) * Math.abs(hd);
     }
 
+    this._positionX.advanceTime(1);
+    this._positionY.advanceTime(1);
+    this._positionZ.advanceTime(1);
+
+    this._position.x = this._positionX.getValue();
+    this._position.y = this._positionY.getValue();
+    this._position.z = this._positionZ.getValue();
 
 
-    this._lookAt.x = this.position.x;
-    this._lookAt.y = this.position.y;
+    this._lookAt.x = this._position.x;
+    this._lookAt.y = this._position.y;
     this._lookAt.z = 0;
-    this.viewMatrix.makeLookAtLH(this.position, this._lookAt, this._up);
+    this.viewMatrix.makeLookAtLH(this._position, this._lookAt, this._up);
     this.projMatrix.makePerspectiveLH(fov, Graphics.width / Graphics.height, 1, 10000);
     // 乗算の順序に注意
     this.viewProjMatrix.multiply(this.viewMatrix, this.projMatrix);
@@ -327,6 +368,9 @@ LMBS_Battler.prototype.onUpdate = function() {
     this.position.x = tx;
     this.position.y = ty;
 
+    this._visual.setPosition(this.position);
+    /*
+
 
     var v = new LMBS_Vector3(tx, ty, 0);
     var v2 = new LMBS_Vector3();
@@ -343,6 +387,7 @@ LMBS_Battler.prototype.onUpdate = function() {
     // 表示したいピクセルサイズで割ることで、ワールド座標系上のスケールを、ウィンドウ座標系上のスケールに変換する
     this._visual.mainSprite.scale.x = (scaleX * scale) / this._visual.mainSprite.width;
     this._visual.mainSprite.scale.y = scale / this._visual.mainSprite.height;
+    */
 
     // アクションの更新
     if (this._currentAction != null) {
@@ -400,7 +445,7 @@ LMBS_Actor.prototype.initialize = function(actor) {
     LMBS_Battler.prototype.initialize.call(this);
     this._actor = actor;
     this.setupComponents(10 - this._actor.index() * 2, 0, 1, 1, LMBS_ForceGroup.Party);
-    this._visual = new LMBS_AnimateSpliteVisual();
+    this._visual = new LMBS_AnimateSpliteVisual(this._actor.battlerName());
 }
 
 /**
@@ -433,11 +478,11 @@ LMBS_Enemy.prototype.initialize = function(enemy) {
     LMBS_Battler.prototype.initialize.call(this);
     this._enemy = enemy;
     this.setupComponents(
-      15 + this._enemy.screenX() * 15 / 816,
-      15 - this._enemy.screenY() * 15 / 444,  // 反転。地面は0で、上がY+
+      15 + this._enemy.screenX() * 10 / 816,  // 816 を 10 に
+      15 - this._enemy.screenY() * 10 / 444,  // 反転。地面は0で、上がY+
       1, 1,
       LMBS_ForceGroup.Troop);
-    this._visual = new LMBS_AnimateSpliteVisual();
+    this._visual = new LMBS_AnimateSpliteVisual("Actor1_2");
     // (0, 16)～(816,444)
   //  console.log(15 + this._enemy.screenX() * 15 / 816);
   //  console.log(15 - this._enemy.screenY() * 15 / 444);
@@ -586,7 +631,7 @@ BattleManager.findSideBattlerObject = function(pos, xDir, forceGroup) {
     // 左側に向かって調べたい
     else {
         for (var next = candidates.length - 1; next >= 0; next--) {
-            if (candidates[next].position.x) {
+            if (candidates[next].position.x < pos.x) {
                 return candidates[next];
             }
         }
@@ -620,10 +665,7 @@ BattleManager.updateMain = function() {
     if (Input.isPressed(LMBS_Settings.keySelectTarget)) {
         this._lmbsPhase = 'TargetSelection';
 
-        // ターゲット切り替え
-        var player = this.getUserOperatingActor();
-        var newTarget = this.findSideBattlerObject(player.getActionTargetBattlerObject().position, 1, ~player.forceGroup());
-        player.setActionTargetBattlerObject(newTarget);
+
     }
 }
 
@@ -633,6 +675,19 @@ BattleManager.updateMain = function() {
 BattleManager.updateTargetSelection = function() {
     // カメラは移動したい
     LMBS_SceneGraph.updateCamera();
+    if (Input.isTriggered('left')) {
+        // ターゲット切り替え
+        var player = this.getUserOperatingActor();
+        var newTarget = this.findSideBattlerObject(player.getActionTargetBattlerObject().position, LMBS_Direction.Left, ~player.forceGroup());
+        player.setActionTargetBattlerObject(newTarget);
+    }
+    else if (Input.isTriggered('right')) {
+        // ターゲット切り替え
+        var player = this.getUserOperatingActor();
+        var newTarget = this.findSideBattlerObject(player.getActionTargetBattlerObject().position, LMBS_Direction.Right, ~player.forceGroup());
+        player.setActionTargetBattlerObject(newTarget);
+    }
+
     // キーが離されていたら Main に戻る
     if (!Input.isPressed(LMBS_Settings.keySelectTarget)) {
         this._lmbsPhase = 'Main';
