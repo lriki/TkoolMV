@@ -17,7 +17,7 @@ LMBS_Vector2.prototype.constructor = LMBS_Vector2;
 LMBS_Vector2.prototype.initialize = function(x, y) {
     this.x = x || 0;
     this.y = y || 0;
-}
+};
 
 //=============================================================================
 /**
@@ -34,7 +34,7 @@ LMBS_Vector3.prototype.initialize = function(x, y, z) {
     this.x = x || 0;
     this.y = y || 0;
     this.z = z || 0;
-}
+};
 
 /**
  * このベクトルに各要素を設定する。
@@ -43,7 +43,7 @@ LMBS_Vector3.prototype.set = function(x, y, z) {
     this.x = x;
     this.y = y;
     this.z = z;
-}
+};
 
 /**
  * 指定したベクトルからこのベクトルに各要素を設定する。
@@ -52,7 +52,7 @@ LMBS_Vector3.prototype.copy = function(v) {
     this.x = v.x;
     this.y = v.y;
     this.z = v.z;
-}
+};
 
 /**
  * このベクトルを正規化したベクトルを返す。
@@ -68,7 +68,7 @@ LMBS_Vector3.prototype.normalize = function () {
         v1.z = this.z * t;
         return v1;
     }
-}
+};
 */
 
 /**
@@ -78,14 +78,14 @@ LMBS_Vector3.prototype.sub = function(a, b) {
     this.x = a.x - b.x;
     this.y = a.y - b.y;
     this.z = a.z - b.z;
-}
+};
 
 /**
  * このベクトルの長さの2乗を返す。
  */
 LMBS_Vector3.prototype.lengthSq = function() {
     return this.x * this.x + this.y * this.y + this.z * this.z;
-}
+};
 
 /**
  * このベクトルと指定したベクトルの距離の2乗を返す。
@@ -95,7 +95,7 @@ LMBS_Vector3.prototype.distanceSq = function(v) {
     dy = this.y - v.y;
     dz = this.z - v.z;
     return dx * dx + dy * dy + dz * dz;
-}
+};
 
 /**
  * このベクトルを正規化する。
@@ -105,7 +105,7 @@ LMBS_Vector3.prototype.normalize = function() {
     this.x = this.x * t;
     this.y = this.y * t;
     this.z = this.z * t;
-}
+};
 
 /**
  * 2つのベクトルの外積をこのベクトルに設定する。
@@ -116,7 +116,7 @@ LMBS_Vector3.prototype.cross = function(a, b) {
     this.x = ay * bz - az * by;
     this.y = az * bx - ax * bz;
     this.z = ax * by - ay * bx;
-}
+};
 
 /**
  * 指定したベクトルを指定した行列で座標変換し、wで除算した結果を設定する。
@@ -127,7 +127,7 @@ LMBS_Vector3.prototype.transformCoord = function(vec, mat) {
   	this.x = ((vec.x * te[0]) + (vec.y * te[4]) + (vec.z * te[8]) + te[12]) * w,
   	this.y = ((vec.x * te[1]) + (vec.y * te[5]) + (vec.z * te[9]) + te[13]) * w,
   	this.z = ((vec.x * te[2]) + (vec.y * te[6]) + (vec.z * te[10]) + te[14]) * w;
-}
+};
 
 //=============================================================================
 /**
@@ -147,7 +147,7 @@ LMBS_Matrix.prototype.initialize = function() {
 		0, 0, 1, 0,
 		0, 0, 0, 1
 	] );
-}
+};
 
 /**
  * 左手座標系のビュー行列を作成し、この行列に設定する。
@@ -179,7 +179,7 @@ LMBS_Matrix.prototype.makeLookAtLH = function(eye, target, up) {
         te[ 14 ] = -(z.x * eye.x + z.y * eye.y + z.z * eye.z);
         te[ 15 ] = 1;
     //}
-}
+};
 
 /**
  * 左手座標系のプロジェクション行列を作成し、この行列に設定する。
@@ -191,7 +191,7 @@ LMBS_Matrix.prototype.makePerspectiveLH = function(fov, aspect, near, far) {
     te[ 4 ] = 0;          te[ 5 ] = h;   te[ 6 ] = 0;                   te[ 7 ] = 0;
     te[ 8 ] = 0;          te[ 9 ] = 0;   te[ 10] = far / (far - near);  te[ 11] = 1.0;
     te[ 12] = 0;          te[ 13] = 0;   te[ 14] = (-near * far) / (far - near); te[ 15] = 0;
-}
+};
 
 /**
  * 指定した2つの行列を乗算し、この行列に設定する。
@@ -230,4 +230,227 @@ LMBS_Matrix.prototype.multiply = function(a, b) {
     te[ 13 ] = a41 * b12 + a42 * b22 + a43 * b32 + a44 * b42;
     te[ 14 ] = a41 * b13 + a42 * b23 + a43 * b33 + a44 * b43;
     te[ 15 ] = a41 * b14 + a42 * b24 + a43 * b34 + a44 * b44;
-}
+};
+
+//=============================================================================
+/**
+ * イージング関数
+ * Easing Function 早見表 > http://easings.net/ja
+ * 各関数の引数は、t:現在時間(0.0～d) b:開始値 c:値の変化量 (目標値-開始値) d:変化にかける時間
+ * @class LMBS_Easing
+ */
+ LMBS_Easing.linearTween = function (t, b, c, d) {
+	return c*t/d + b;
+};
+
+LMBS_Easing.easeInQuad = function (t, b, c, d) {
+	t /= d;
+	return c*t*t + b;
+};
+
+LMBS_Easing.easeOutQuad = function (t, b, c, d) {
+	t /= d;
+	return -c * t*(t-2) + b;
+};
+
+LMBS_Easing.easeInOutQuad = function (t, b, c, d) {
+	t /= d/2;
+	if (t < 1) return c/2*t*t + b;
+	t--;
+	return -c/2 * (t*(t-2) - 1) + b;
+};
+
+LMBS_Easing.easeInCubic = function (t, b, c, d) {
+	t /= d;
+	return c*t*t*t + b;
+};
+
+LMBS_Easing.easeOutCubic = function (t, b, c, d) {
+	t /= d;
+	t--;
+	return c*(t*t*t + 1) + b;
+};
+
+LMBS_Easing.easeInOutCubic = function (t, b, c, d) {
+	t /= d/2;
+	if (t < 1) return c/2*t*t*t + b;
+	t -= 2;
+	return c/2*(t*t*t + 2) + b;
+};
+
+LMBS_Easing.easeInQuart = function (t, b, c, d) {
+	t /= d;
+	return c*t*t*t*t + b;
+};
+
+LMBS_Easing.easeOutQuart = function (t, b, c, d) {
+	t /= d;
+	t--;
+	return -c * (t*t*t*t - 1) + b;
+};
+
+LMBS_Easing.easeInOutQuart = function (t, b, c, d) {
+	t /= d/2;
+	if (t < 1) return c/2*t*t*t*t + b;
+	t -= 2;
+	return -c/2 * (t*t*t*t - 2) + b;
+};
+
+LMBS_Easing.easeInQuint = function (t, b, c, d) {
+	t /= d;
+	return c*t*t*t*t*t + b;
+};
+
+LMBS_Easing.easeOutQuint = function (t, b, c, d) {
+	t /= d;
+	t--;
+	return c*(t*t*t*t*t + 1) + b;
+};
+
+LMBS_Easing.easeInOutQuint = function (t, b, c, d) {
+	t /= d/2;
+	if (t < 1) return c/2*t*t*t*t*t + b;
+	t -= 2;
+	return c/2*(t*t*t*t*t + 2) + b;
+};
+
+LMBS_Easing.easeInSine = function (t, b, c, d) {
+	return -c * LMBS_Easing.cos(t/d * (LMBS_Easing.PI/2)) + c + b;
+};
+
+LMBS_Easing.easeOutSine = function (t, b, c, d) {
+	return c * LMBS_Easing.sin(t/d * (LMBS_Easing.PI/2)) + b;
+};
+
+LMBS_Easing.easeInOutSine = function (t, b, c, d) {
+	return -c/2 * (LMBS_Easing.cos(LMBS_Easing.PI*t/d) - 1) + b;
+};
+
+LMBS_Easing.easeInExpo = function (t, b, c, d) {
+	return c * LMBS_Easing.pow( 2, 10 * (t/d - 1) ) + b;
+};
+
+LMBS_Easing.easeOutExpo = function (t, b, c, d) {
+	return c * ( -LMBS_Easing.pow( 2, -10 * t/d ) + 1 ) + b;
+};
+
+LMBS_Easing.easeInOutExpo = function (t, b, c, d) {
+	t /= d/2;
+	if (t < 1) return c/2 * LMBS_Easing.pow( 2, 10 * (t - 1) ) + b;
+	t--;
+	return c/2 * ( -LMBS_Easing.pow( 2, -10 * t) + 2 ) + b;
+};
+
+LMBS_Easing.easeInCirc = function (t, b, c, d) {
+	t /= d;
+	return -c * (LMBS_Easing.sqrt(1 - t*t) - 1) + b;
+};
+
+LMBS_Easing.easeOutCirc = function (t, b, c, d) {
+	t /= d;
+	t--;
+	return c * LMBS_Easing.sqrt(1 - t*t) + b;
+};
+
+LMBS_Easing.easeInOutCirc = function (t, b, c, d) {
+	t /= d/2;
+	if (t < 1) return -c/2 * (LMBS_Easing.sqrt(1 - t*t) - 1) + b;
+	t -= 2;
+	return c/2 * (LMBS_Easing.sqrt(1 - t*t) + 1) + b;
+};
+
+//=============================================================================
+/**
+ *  イージングによりシンプルに遷移する値のクラスです。
+ *  @class LMBS_EasingValue
+ */
+function LMBS_EasingValue() { this.initialize.apply(this, arguments); }
+LMBS_EasingValue.prototype.constructor = LMBS_EasingValue;
+
+/**
+ * constructor
+ */
+LMBS_EasingValue.prototype.initialize = function() {
+    this._startValue = 0;
+    this._targetValue = 0;
+    this._value = 0;
+	this._currentTime = 0;
+	this._totalTime = 0;
+    this._easing = LMBS_Easing.linearTween;
+};
+
+/**
+ * イージング関数を設定
+ */
+LMBS_EasingValue.prototype.setEasingFunction = function(easingFunc) {
+    this._easing = easingFunc;
+};
+
+/**
+ * 値の遷移を開始します。
+ */
+LMBS_EasingValue.prototype.start = function(startValue, targetValue, time) {
+    this._startValue = startValue;
+	this._targetValue = targetValue;
+	this._totalTime = time;
+	this._currentTime = 0.0;
+	this.setTime(this._currentTime);
+};
+
+/**
+ * 値の遷移を開始します。開始として現在の値を使用します。
+ */
+LMBS_EasingValue.prototype.startAt = function(targetValue, time) {
+    this._startValue = this._value;
+	this._targetValue = targetValue;
+	this._totalTime = time;
+	this._currentTime = 0.0;
+	this.setTime(this._currentTime);
+};
+
+/**
+ * 経過時間を設定します。
+ */
+LMBS_EasingValue.prototype.setTime = function(time) {
+	this._currentTime = time;
+	this._updateValue();
+};
+
+/**
+ * 指定した値だけ時間を進めます。
+ */
+LMBS_EasingValue.prototype.advanceTime = function(deltaTime) {
+	this._currentTime += deltaTime;
+	this._updateValue();
+};
+
+/**
+ * 現在の値を取得します。
+ * 経過時間が 0 以前の場合は 開始時の値を、経過時間が 変更にかける時間以上 の場合は 終了時の値 を返します。
+ */
+LMBS_EasingValue.prototype.getValue = function() {
+	return this._value;
+};
+
+/**
+ * 現在の値を取得します。
+ * 経過時間が 0 以前の場合は 開始時の値を、経過時間が 変更にかける時間以上 の場合は 終了時の値 を返します。
+ */
+LMBS_EasingValue.prototype.isFinished = function() {
+	return (this._currentTime >= this._totalTime);
+};
+
+LMBS_EasingValue.prototype._updateValue = function() {
+    if (this._currentTime >= this._totalTime)
+	{
+		this._value = m_targetValue;
+	}
+	else if (this._currentTime <= 0 || this._totalTime <= 0)
+	{
+		this._value = this._startValue;
+	}
+	else
+	{
+		this._value = this._easing(this._currentTime, this._startValue, this._targetValue - this._startValue, this._totalTime);
+	}
+};
