@@ -129,6 +129,24 @@ LMBS_Vector3.prototype.transformCoord = function(vec, mat) {
   	this.z = ((vec.x * te[2]) + (vec.y * te[6]) + (vec.z * te[10]) + te[14]) * w;
 };
 
+/**
+ * オブジェクト空間(3D空間)のベクトルをスクリーン空間(2D空間)のベクトルに変換し、このベクトルに設定する。
+ * @param[in]	point			: オブジェクト空間上の座標
+ * @param[in]	worldViewProj	: 結合済みの ワールド - ビュー - プロジェクション行列
+ * @param[in]	x				: ビューポートの左上 X 座標
+ * @param[in]	y				: ビューポートの左上 Y 座標
+ * @param[in]	width			: ビューポートの幅
+ * @param[in]	height			: ビューポートの高さ
+ * @param[in]	minZ			: ビューポートの最小深度
+ * @param[in]	maxZ			: ビューポートの最大深度
+ */
+LMBS_Vector3.prototype.project = function(point, worldViewProj, x, y, width, height, minZ, maxZ) {
+    this.transformCoord(point, worldViewProj);
+    this.x = ((1.0 + this.x) * 0.5 * width) + x,
+		this.y = ((1.0 - this.y) * 0.5 * height) + y,
+		this.z = (this.z * (maxZ - minZ)) + minZ;
+};
+
 //=============================================================================
 /**
  * 4x4 行優先行列

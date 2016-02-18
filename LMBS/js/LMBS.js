@@ -102,6 +102,10 @@ LMBS_SceneGraph.clear = function() {
     this.camera.setPosition(10, 0, -10);
 }
 
+LMBS_SceneGraph.getMainCamera = function() {
+    return this.camera;
+}
+
 LMBS_SceneGraph.addObject = function(obj) {
     this._objectList.push(obj);
 }
@@ -120,7 +124,7 @@ LMBS_SceneGraph.updateWorld = function() {
     // 物理オブジェクトのデバッグ描画
     this._debugGraphics.clear();
     this._physicsBodyList.forEach(function(body){
-        body.debugDraw(this.camera, this._debugGraphics);
+        //body.debugDraw(this.camera, this._debugGraphics);
     }, this);
 }
 
@@ -369,6 +373,7 @@ LMBS_Battler.prototype.onUpdate = function() {
     this.position.y = ty;
 
     this._visual.setPosition(this.position);
+    this._visual.setDirection(this.direction);
     /*
 
 
@@ -531,7 +536,8 @@ BattleManager.initMembers = function() {
     this.userOperationActorIndex = 0; // ユーザー入力で操作するパーティ内のアクター番号
     this._battlerObjects = [];
     this._actorBattlerObjects = [];
-    this._lmbsPhase = 'Main';
+    this._lmbsPhase = '';
+    this.startMainPhase();
 }
 
 /**
@@ -658,15 +664,30 @@ BattleManager.update = function() {
 /**
  *
  */
+BattleManager.startMainPhase = function() {
+    this._lmbsPhase = 'Main';
+}
+
+/**
+ *
+ */
+BattleManager.startTargetSelectionPhase = function() {
+    this._lmbsPhase = 'TargetSelection';
+}
+
+/**
+ *
+ */
+BattleManager.getPhase = function() {
+    return this._lmbsPhase;
+}
+
+/**
+ *
+ */
 BattleManager.updateMain = function() {
     LMBS_SceneGraph.updateWorld();
     LMBS_SceneGraph.updateCamera();
-    // ターゲット選択キーが押されていたら選択フェーズへ
-    if (Input.isPressed(LMBS_Settings.keySelectTarget)) {
-        this._lmbsPhase = 'TargetSelection';
-
-
-    }
 }
 
 /**
@@ -687,11 +708,6 @@ BattleManager.updateTargetSelection = function() {
         var newTarget = this.findSideBattlerObject(player.getActionTargetBattlerObject().position, LMBS_Direction.Right, ~player.forceGroup());
         player.setActionTargetBattlerObject(newTarget);
     }
-
-    // キーが離されていたら Main に戻る
-    if (!Input.isPressed(LMBS_Settings.keySelectTarget)) {
-        this._lmbsPhase = 'Main';
-    }
 }
 
 //=============================================================================
@@ -709,12 +725,80 @@ Scene_Boot.prototype.create = function() {
 //  SpriteSet は Scene クラスから SceneGraph へ送り込むのが自然だろう。
 //=============================================================================
 
-//-----------------------------------------------------------------------------
-// create
-//-----------------------------------------------------------------------------
+/**
+ *  aliasing
+ */
 var _Scene_Battle_prototype_create = Scene_Battle.prototype.create;
 Scene_Battle.prototype.create = function() {
     _Scene_Battle_prototype_create.call(this);
     // SceneGraph のスプライトはどこへ addChild するか指定する
     LMBS_SceneGraph.setup(this._spriteset);
+};
+
+/**
+ *  aliasing
+ */
+var _Scene_Battle_prototype_createAllWindows = Scene_Battle.prototype.createAllWindows;
+Scene_Battle.prototype.createAllWindows = function() {
+    _Scene_Battle_prototype_createAllWindows.call(this);
+    this.createTargetEnemyWindow();
+}
+
+/**
+ *  aliasing
+ */
+var _Scene_Battle_prototype_update = Scene_Battle.prototype.update;
+Scene_Battle.prototype.update = function() {
+    _Scene_Battle_prototype_update.call(this);
+    // フェーズごとの更新処理
+    switch (BattleManager.getPhase()) {
+    case 'Main':
+        this.updateMainPhase();
+        break;
+    case 'TargetSelection':
+        this.updateTargetSelectionPhase();
+        break;
+    }
+}
+
+/**
+ *
+ */
+Scene_Battle.prototype.updateMainPhase = function() {
+    // ターゲット選択キーが押されていたら選択フェーズへ
+    if (Input.isPressed(LMBS_Settings.keySelectTarget)) {
+        BattleManager.startTargetSelectionPhase();
+        this._targetCursor.visible = true;
+    }
+};
+
+/**
+ *
+ */
+Scene_Battle.prototype.updateTargetSelectionPhase = function() {
+    // キーが離されていたら Main に戻る
+    if (!Input.isPressed(LMBS_Settings.keySelectTarget)) {
+        BattleManager.startMainPhase();
+        this._targetCursor.visible = false;
+    }
+
+    var player = BattleManager.getUserOperatingActor();
+    target = player.getActionTargetBattlerObject();
+    var pos = new LMBS_Vector3();
+    pos.project(target.position, LMBS_SceneGraph.getMainCamera().viewProjMatrix, 0, 0, Graphics.boxWidth, Graphics.boxHeight, 0, 1);
+
+    this._targetCursor.setPosition(pos.x, pos.y);
+    this._targetCursor.update();
+};
+
+/**
+ *
+ */
+Scene_Battle.prototype.createTargetEnemyWindow = function() {
+    this._targetEnemyWindow = new LMBS_Window_TargetEnemy();
+    this._targetEnemyWindow.visible = false;
+    this.addWindow(this._targetEnemyWindow);
+    this._targetCursor = new LMBS_TargetCursor();
+    this._targetCursor.visible = false;
+    this.addWindow(this._targetCursor);
 };

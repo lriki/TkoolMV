@@ -76,13 +76,6 @@ LMBS_IdleAction.prototype.onUserInput = function() {
         this.battler.direction = LMBS_Battler.DIRECTION.RIGHT;
         this.battler.changeAction(new LMBS_WalkAction());
     }
-
-    // ターゲットに向く
-    var target = this.battler.getActionTargetBattlerObject();
-    if (target != null) {
-        var d = target.position.x - this.battler.position.x;
-        this.battler.direction = d / Math.abs(d); // 正規化。1Dなのでこれでいい。
-    }
 }
 
 /**
@@ -90,6 +83,13 @@ LMBS_IdleAction.prototype.onUserInput = function() {
  */
 LMBS_IdleAction.prototype.onUpdate = function() {
     LMBS_Action.prototype.onUpdate.call(this);
+
+    // ターゲットに向く
+    var target = this.battler.getActionTargetBattlerObject();
+    if (target != null) {
+        var d = target.position.x - this.battler.position.x;
+        this.battler.direction = d / Math.abs(d); // 正規化。1Dなのでこれでいい。
+    }
 }
 
 //=============================================================================
