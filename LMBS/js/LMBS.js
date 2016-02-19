@@ -5,6 +5,26 @@ var $plugins =
   {"name":"LMBS","status":true,"description":"","parameters":{}}
 ];
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 /*
 [Note]
     先頭背景変更
@@ -42,6 +62,8 @@ function LMBS_Settings() {
 }
 
 LMBS_Settings.keySelectTarget = 'shift';  // ターゲット選択ボタン
+LMBS_Settings.keyShiftOperatingActor = 'control';
+LMBS_Settings.keyNormalAttack = 'ok';  // 通常攻撃
 
 
 //=============================================================================
@@ -313,15 +335,16 @@ LMBS_Battler.prototype.initialize = function() {
     //this.transform.ty = 300;
     this.position = new LMBS_Vector3();           // 足元の位置 (ワールド空間)
     this.direction = LMBS_Battler.DIRECTION.LEFT;
-    this._motionFrameCount = 0;
     this._visual = null;
     this._currentMotion = null;
+    this._motionFrameCount = 0;
     this._currentAction = null;
+    this._actionFrameCount = 0;
 
     this._forceGroup = 0;
     this._actionTarget = null;          // ターゲットとなっている LMBS_Battler
 
-    this.changeAction(new LMBS_IdleAction());
+    this.changeAction("Idle");
 };
 
 /**
@@ -362,6 +385,20 @@ LMBS_Battler.prototype.getActionTargetBattlerObject = function() {
 }
 
 /**
+ *
+ */
+LMBS_Battler.prototype.motionFrameCount = function() {
+    return this._motionFrameCount;
+}
+
+/**
+ *
+ */
+LMBS_Battler.prototype.actionFrameCount = function() {
+    return this._actionFrameCount;
+}
+
+/**
  *  override
  */
 LMBS_Battler.prototype.onUpdate = function() {
@@ -374,30 +411,13 @@ LMBS_Battler.prototype.onUpdate = function() {
 
     this._visual.setPosition(this.position);
     this._visual.setDirection(this.direction);
-    /*
 
-
-    var v = new LMBS_Vector3(tx, ty, 0);
-    var v2 = new LMBS_Vector3();
-    LMBS_SceneGraph.camera.transformPosition(v, v2);
-    var scale = LMBS_SceneGraph.camera.calcScale(v);
-    this._visual.mainSprite.x = v2.x;//this.transform.tx;
-    this._visual.mainSprite.y = v2.y;//this.transform.ty;
-
-
-    // 向き
-    var scaleX = -this.direction;
-    this._visual.mainSprite.scale.x = scaleX;
-
-    // 表示したいピクセルサイズで割ることで、ワールド座標系上のスケールを、ウィンドウ座標系上のスケールに変換する
-    this._visual.mainSprite.scale.x = (scaleX * scale) / this._visual.mainSprite.width;
-    this._visual.mainSprite.scale.y = scale / this._visual.mainSprite.height;
-    */
 
     // アクションの更新
     if (this._currentAction != null) {
-        this._currentAction.onUpdate();
+        this._currentAction.onUpdate(this);
     }
+    this._actionFrameCount++;
     // モーションの更新
     if (this._currentMotion != null) {
         this._currentMotion.update(this, this._motionFrameCount);
@@ -420,16 +440,14 @@ LMBS_Battler.prototype.changeMotion = function(name) {
 /**
  *
  */
-LMBS_Battler.prototype.changeAction = function(action) {
+LMBS_Battler.prototype.changeAction = function(name) {
     // 適用中モーションと同じものなら何もしない
     if (this._currentAction != null && this._currentAction.name == name) {
         return;
     }
-    this._currentAction = action;
-    if (this._currentAction) {
-        this._currentAction.battler = this;
-        this._currentAction.onAttached();
-    }
+    this._currentAction = LMBS_ActionManager.getAction(name);
+    this._currentAction.onAttached(this);
+    this._actionFrameCount = 0;
 }
 
 
@@ -461,7 +479,13 @@ LMBS_Actor.prototype.onUpdate = function() {
     // ユーザー入力の更新
     if (this._currentAction != null &&
         $gameParty.members().indexOf(this._actor) == BattleManager.userOperationActorIndex) {
-        this._currentAction.onUserInput();
+        this._currentAction.onUserInput(this);
+    }
+    // 武器スプライトの持ち変えチェック
+    var weapons = this._actor.weapons();
+    var wtypeId = weapons[0] ? weapons[0].wtypeId : 0;
+    if (wtypeId != this._visual.weaponSprite().weaponImageId()) {
+        this._visual.weaponSprite().changeWeaponImageId(wtypeId);
     }
 }
 
@@ -491,6 +515,7 @@ LMBS_Enemy.prototype.initialize = function(enemy) {
     // (0, 16)～(816,444)
   //  console.log(15 + this._enemy.screenX() * 15 / 816);
   //  console.log(15 - this._enemy.screenY() * 15 / 444);
+
 }
 
 /**
@@ -710,6 +735,13 @@ BattleManager.updateTargetSelection = function() {
     }
 }
 
+/**
+ *
+ */
+BattleManager.shiftOperatingActor = function() {
+    this.userOperationActorIndex = (this.userOperationActorIndex + 1) % $gameParty.members().length;
+};
+
 //=============================================================================
 // Scene_Boot
 //=============================================================================
@@ -717,6 +749,7 @@ var _Scene_Boot_prototype_create = Scene_Boot.prototype.create;
 Scene_Boot.prototype.create = function() {
     _Scene_Boot_prototype_create.call(this);
     LMBS_MotionManager.setup();
+    LMBS_ActionManager.setup();
 };
 
 //=============================================================================
@@ -769,6 +802,10 @@ Scene_Battle.prototype.updateMainPhase = function() {
     if (Input.isPressed(LMBS_Settings.keySelectTarget)) {
         BattleManager.startTargetSelectionPhase();
         this._targetCursor.visible = true;
+    }
+    // 操作アクター切り替え
+    if (Input.isTriggered(LMBS_Settings.keyShiftOperatingActor)) {
+        BattleManager.shiftOperatingActor();
     }
 };
 

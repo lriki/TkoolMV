@@ -46,6 +46,7 @@ LMBS_Body.prototype.applyForce = function(x, y) {
  *
  */
 LMBS_Body.prototype.applyMovement = function(x, y) {
+  console.log(x);
     this._body.SetLinearVelocity(new Box2D.Common.Math.b2Vec2(x, y));
     if (this._body.IsAwake() == false) {
         this._body.SetAwake(true);

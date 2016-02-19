@@ -5,6 +5,59 @@ var $plugins =
   {"name":"LMBS＿Motion","status":true,"description":"","parameters":{}}
 ];
 
+
+
+
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_PredefinedUserInput() {
+    throw new Error('This is a static class');
+}
+
+/**
+ *
+ */
+LMBS_PredefinedUserInput.tryInputNormalAttack = function(battlerObj) {
+    if (Input.isTriggered(LMBS_Settings.keyNormalAttack)) {
+
+    }
+}
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_ActionManager() {
+    throw new Error('This is a static class');
+}
+
+LMBS_ActionManager._actions   = {};
+
+/**
+ */
+LMBS_ActionManager.setup = function() {
+    this.registerAction(new LMBS_IdleAction("Idle"));
+    this.registerAction(new LMBS_WalkAction("Walk"));
+}
+
+/**
+ * @param name {String}
+ * @param motion {LMBS_Motion}
+ */
+LMBS_ActionManager.registerAction = function(action) {
+    this._actions[action.name] = action;
+}
+
+/**
+ * @param name {String}
+ */
+LMBS_ActionManager.getAction = function(name) {
+    return this._actions[name];
+}
+
 //=============================================================================
 // LMBS_Action
 //-----------------------------------------------------------------------------
@@ -18,24 +71,21 @@ LMBS_Action.prototype.constructor = LMBS_Action;
  */
 LMBS_Action.prototype.initialize = function(name) {
     this.name = name;
-    this.battler = null;
-    this.frameCount = 0;
 }
 
 /**
  */
-LMBS_Action.prototype.onAttached = function() {
+LMBS_Action.prototype.onAttached = function(battlerObj) {
 }
 
 /**
  */
-LMBS_Action.prototype.onUserInput = function() {
+LMBS_Action.prototype.onUserInput = function(battlerObj) {
 }
 
 /**
  */
-LMBS_Action.prototype.onUpdate = function() {
-    this.frameCount++;
+LMBS_Action.prototype.onUpdate = function(battlerObj) {
 }
 
 //=============================================================================
@@ -58,37 +108,37 @@ LMBS_IdleAction.prototype.initialize = function(name) {
 /**
  *  override
  */
-LMBS_IdleAction.prototype.onAttached = function() {
-    LMBS_Action.prototype.onUpdate.call(this);
+LMBS_IdleAction.prototype.onAttached = function(battlerObj) {
+    LMBS_Action.prototype.onUpdate.call(this, battlerObj);
     // モーション開始
-    this.battler.changeMotion("basic_wait");
+    battlerObj.changeMotion("basic_wait");
 }
 
 /**
  */
-LMBS_IdleAction.prototype.onUserInput = function() {
-    LMBS_Action.prototype.onUserInput.call(this);
+LMBS_IdleAction.prototype.onUserInput = function(battlerObj) {
+    LMBS_Action.prototype.onUserInput.call(this, battlerObj);
     if (Input.dir4 == 4) {
-        this.battler.direction = LMBS_Battler.DIRECTION.LEFT;
-        this.battler.changeAction(new LMBS_WalkAction());
+        battlerObj.direction = LMBS_Battler.DIRECTION.LEFT;
+        battlerObj.changeAction("Walk");
     }
     else if (Input.dir4 == 6) {
-        this.battler.direction = LMBS_Battler.DIRECTION.RIGHT;
-        this.battler.changeAction(new LMBS_WalkAction());
+        battlerObj.direction = LMBS_Battler.DIRECTION.RIGHT;
+        battlerObj.changeAction("Walk");
     }
 }
 
 /**
  *  override
  */
-LMBS_IdleAction.prototype.onUpdate = function() {
-    LMBS_Action.prototype.onUpdate.call(this);
+LMBS_IdleAction.prototype.onUpdate = function(battlerObj) {
+    LMBS_Action.prototype.onUpdate.call(this, battlerObj);
 
     // ターゲットに向く
-    var target = this.battler.getActionTargetBattlerObject();
+    var target = battlerObj.getActionTargetBattlerObject();
     if (target != null) {
-        var d = target.position.x - this.battler.position.x;
-        this.battler.direction = d / Math.abs(d); // 正規化。1Dなのでこれでいい。
+        var d = target.position.x - battlerObj.position.x;
+        battlerObj.direction = d / Math.abs(d); // 正規化。1Dなのでこれでいい。
     }
 }
 
@@ -112,40 +162,40 @@ LMBS_WalkAction.prototype.initialize = function(name) {
 /**
  *  override
  */
-LMBS_WalkAction.prototype.onAttached = function() {
-    LMBS_Action.prototype.onUpdate.call(this);
+LMBS_WalkAction.prototype.onAttached = function(battlerObj) {
+    LMBS_Action.prototype.onUpdate.call(this, battlerObj);
     // モーション開始
-    this.battler.changeMotion("basic_move");
+    battlerObj.changeMotion("basic_move");
 
     // test
     var animation = $dataAnimations[2];
     //var mirror = data.mirror;
     //var delay = animation.position === 3 ? 0 : data.delay;
-    this.battler._visual.mainSprite.startAnimation(animation, false, 0);
+    //battlerObj._visual.mainSprite.startAnimation(animation, false, 0);
 }
 
 /**
  *  override
  */
-LMBS_WalkAction.prototype.onUserInput = function() {
-    LMBS_Action.prototype.onUserInput.call(this);
-    var vel = this.battler.direction;
+LMBS_WalkAction.prototype.onUserInput = function(battlerObj) {
+    LMBS_Action.prototype.onUserInput.call(this, battlerObj);
+    var vel = battlerObj.direction;
     if (Input.isPressed('left')) {
-        this.battler.mainBody.applyMovement(-vel, 0);
+        battlerObj.mainBody.applyMovement(vel, 0);
     }
     else if (Input.isPressed('right')) {
-        this.battler.mainBody.applyMovement(vel, 0);
+        battlerObj.mainBody.applyMovement(vel, 0);
     }
     else {
         // キーが押されていなければ Idle 状態へ
-        this.battler.changeAction(new LMBS_IdleAction());
+        battlerObj.changeAction("Idle");
     }
 }
 
 /**
  *  override
  */
-LMBS_WalkAction.prototype.onUpdate = function() {
-    LMBS_Action.prototype.onUpdate.call(this);
+LMBS_WalkAction.prototype.onUpdate = function(battlerObj) {
+    LMBS_Action.prototype.onUpdate.call(this, battlerObj);
 
 }

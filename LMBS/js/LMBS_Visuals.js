@@ -73,13 +73,16 @@ LMBS_Sprite_Battler.prototype.startAnimation = function(animation, mirror, delay
  *  @class LMBS_Visual
  */
 function LMBS_Visual() { this.initialize.apply(this, arguments); }
+LMBS_Visual.prototype = Object.create(Sprite_Base.prototype);
 LMBS_Visual.prototype.constructor = LMBS_Visual;
 
 /**
  * constructor
  */
 LMBS_Visual.prototype.initialize = function() {
+    Sprite_Base.prototype.initialize.call(this);
     LMBS_SceneGraph.addVisual(this);
+    LMBS_SceneGraph.viewportSprite.addChild(this);
     this._position = new LMBS_Vector3();
     this._direction = 1;
 };
@@ -107,16 +110,16 @@ LMBS_Visual.prototype.updateCoordinate = function() {
     var v2 = new LMBS_Vector3();
     LMBS_SceneGraph.camera.transformPosition(this._position, v2);
     var scale = LMBS_SceneGraph.camera.calcScale(this._position);
-    this.mainSprite.x = v2.x;//this.transform.tx;
-    this.mainSprite.y = v2.y;//this.transform.ty;
+    this.x = v2.x;//this.transform.tx;
+    this.y = v2.y;//this.transform.ty;
 
     // 向き
     var scaleX = -this._direction;
-    this.mainSprite.scale.x = scaleX;
+    this.scale.x = scaleX;
 
     // 表示したいピクセルサイズで割ることで、ワールド座標系上のスケールを、ウィンドウ座標系上のスケールに変換する
-    this.mainSprite.scale.x = (scaleX * scale) / this.mainSprite.width;
-    this.mainSprite.scale.y = scale / this.mainSprite.height;
+    this.scale.x = (scaleX * scale) / this.mainSprite.width;
+    this.scale.y = scale / this.mainSprite.height;
 };
 
 //=============================================================================
@@ -135,13 +138,23 @@ LMBS_AnimateSpliteVisual.prototype.constructor = LMBS_AnimateSpliteVisual;
 LMBS_AnimateSpliteVisual.prototype.initialize = function(battlerName) {
     LMBS_Visual.prototype.initialize.call(this);
 
+    this._weaponSprite = new LMBS_Sprite_Weapon();
+    this.addChild(this._weaponSprite);
+
     this.mainSprite = new LMBS_Sprite_Battler();
     this.mainSprite.bitmap = ImageManager.loadSvActor(battlerName);
     this.mainSprite.setFrame(0, 0, 64, 64);
     this.mainSprite.visible = true;
     this.mainSprite.anchor.x = 0.5;
-    LMBS_SceneGraph.viewportSprite.addChild(this.mainSprite);
+    this.addChild(this.mainSprite);
 };
+
+/**
+ *
+ */
+LMBS_AnimateSpliteVisual.prototype.weaponSprite = function() {
+    return this._weaponSprite;
+}
 
 //=============================================================================
 /**
@@ -161,5 +174,69 @@ LMBS_PictureSpliteVisual.prototype.initialize = function() {
 
     this.mainSprite = new Sprite();
     this.mainSprite.bitmap = ImageManager.loadSvActor("Actor1_1");
-    LMBS_SceneGraph.viewportSprite.addChild(this.mainSprite);
+    this.addChild(this.mainSprite);
+};
+
+//=============================================================================
+/**
+ *  武器 Sprite
+ *  @class LMBS_Sprite_Weapon
+ */
+function LMBS_Sprite_Weapon() { this.initialize.apply(this, arguments); }
+LMBS_Sprite_Weapon.prototype = Object.create(Sprite_Base.prototype);
+LMBS_Sprite_Weapon.prototype.constructor = LMBS_Sprite_Weapon;
+
+/**
+ * constructor
+ */
+LMBS_Sprite_Weapon.prototype.initialize = function() {
+    Sprite_Base.prototype.initialize.call(this);
+    this._weaponImageId = -1;
+    // 大体柄のあたりが原点になるくらいにする
+    this.anchor.x = 0.5;
+    this.anchor.y = 0.20;
+};
+
+/**
+ *
+ */
+LMBS_Sprite_Weapon.prototype.changeWeaponImageId = function(weaponImageId) {
+    this._weaponImageId = weaponImageId;
+    this.loadBitmap();
+    this.updateFrame();
+};
+
+/**
+ *
+ */
+LMBS_Sprite_Weapon.prototype.weaponImageId = function() {
+    return this._weaponImageId;
+};
+
+/**
+ *
+ */
+LMBS_Sprite_Weapon.prototype.loadBitmap = function() {
+    var pageId = Math.floor((this._weaponImageId - 1) / 12) + 1;
+    if (pageId >= 1) {
+        this.bitmap = ImageManager.loadSystem('Weapons' + pageId);
+    } else {
+        this.bitmap = ImageManager.loadSystem('');
+    }
+};
+
+/**
+ *
+ */
+LMBS_Sprite_Weapon.prototype.updateFrame = function() {
+    if (this._weaponImageId > 0) {
+        var index = (this._weaponImageId - 1) % 12;
+        var w = 96;
+        var h = 64;
+        var sx = 2 * w;
+        var sy = Math.floor(index % 6) * h;
+        this.setFrame(sx, sy, w, h);
+    } else {
+        this.setFrame(0, 0, 0, 0);
+    }
 };

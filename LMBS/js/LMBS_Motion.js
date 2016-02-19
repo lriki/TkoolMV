@@ -107,6 +107,13 @@ LMBS_Motion_Idle_SvSprite.prototype.getSupportVisualType = function() {
 LMBS_Motion_Idle_SvSprite.prototype.update = function(battler, frameCount) {
     var pattern = Math.floor(frameCount / 20) % 3;
     battler._visual.mainSprite.setFrame(pattern * 64, 0, 64, 64);
+    battler._visual.weaponSprite().x = -8; // 位置は左向きをベースとしたピクセル単位
+
+    offset = pattern;
+    if (pattern == 0) offset += 0;
+    if (pattern == 1) offset += 1;
+    if (pattern == 2) offset += 1;
+    battler._visual.weaponSprite().y = offset + 8;
 }
 
 //=============================================================================
