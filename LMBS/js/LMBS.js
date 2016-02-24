@@ -338,7 +338,7 @@ LMBS_Battler.prototype.initialize = function() {
     this._visual = null;
     this._currentMotion = null;
     this._motionFrameCount = 0;
-    this._currentAction = null;
+    this._actionInterpreter = new LMBS_ActionInterpreter(this, null);
     this._actionFrameCount = 0;
 
     this._forceGroup = 0;
@@ -414,10 +414,8 @@ LMBS_Battler.prototype.onUpdate = function() {
 
 
     // アクションの更新
-    if (this._currentAction != null) {
-        this._currentAction.onUpdate(this);
-    }
-    this._actionFrameCount++;
+    this._actionInterpreter.update();
+    //this._actionFrameCount++;
     // モーションの更新
     if (this._currentMotion != null) {
         this._currentMotion.update(this, this._motionFrameCount);
@@ -442,12 +440,13 @@ LMBS_Battler.prototype.changeMotion = function(name) {
  */
 LMBS_Battler.prototype.changeAction = function(name) {
     // 適用中モーションと同じものなら何もしない
-    if (this._currentAction != null && this._currentAction.name == name) {
+    if (this._actionInterpreter.predefinedAction() != null && this._actionInterpreter.predefinedAction().name == name) {
         return;
     }
-    this._currentAction = LMBS_ActionManager.getAction(name);
-    this._currentAction.onAttached(this);
-    this._actionFrameCount = 0;
+    var action = LMBS_ActionManager.getAction(name);
+    action.onAttached(this);
+    this._actionInterpreter.setupPredefinedAction(action);
+    //this._actionFrameCount = 0;
 }
 
 
@@ -477,9 +476,9 @@ LMBS_Actor.prototype.initialize = function(actor) {
 LMBS_Actor.prototype.onUpdate = function() {
     LMBS_Battler.prototype.onUpdate.call(this);
     // ユーザー入力の更新
-    if (this._currentAction != null &&
+    if (this._actionInterpreter.predefinedAction() != null &&
         $gameParty.members().indexOf(this._actor) == BattleManager.userOperationActorIndex) {
-        this._currentAction.onUserInput(this);
+        this._actionInterpreter.predefinedAction().onUserInput(this);
     }
     // 武器スプライトの持ち変えチェック
     var weapons = this._actor.weapons();

@@ -199,3 +199,154 @@ LMBS_WalkAction.prototype.onUpdate = function(battlerObj) {
     LMBS_Action.prototype.onUpdate.call(this, battlerObj);
 
 }
+
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_InterpreterBase() { this.initialize.apply(this, arguments); }
+LMBS_InterpreterBase.prototype.constructor = LMBS_InterpreterBase;
+
+/** constructor */
+LMBS_InterpreterBase.prototype.initialize = function(ownerBattlerObj, commandCallbackMap) {
+    this.clear();
+    this._ownerBattlerObj = ownerBattlerObj;
+    this._commandCallbackMap = commandCallbackMap;
+}
+
+/** */
+LMBS_InterpreterBase.prototype.ownerBattlerObj = function(list) {
+    return this._ownerBattlerObj;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.clear = function() {
+    this._list = null;
+    this._index = 0;
+    this._waitCount = 0;
+    this._waitMode = '';
+    this._params = null;
+    this._indent = 0;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.setup = function(list) {
+    this.clear();
+    this._list = list;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.isRunning = function() {
+    return !!this._list;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.update = function() {
+    while (this.isRunning()) {
+        if (this.updateWait()) {
+            break;
+        }
+        if (!this.executeCommand()) {
+            break;
+        }
+    }
+}
+
+/** */
+LMBS_InterpreterBase.prototype.updateWait = function() {
+    return this.updateWaitCount() || this.updateWaitMode();
+};
+
+/** */
+LMBS_InterpreterBase.prototype.updateWaitCount = function() {
+    if (this._waitCount > 0) {
+        this._waitCount--;
+        return true;
+    }
+    return false;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.updateWaitMode = function() {
+    var waiting = false;
+    //switch (this._waitMode) {
+    //case 'message':
+  //      waiting = $gameMessage.isBusy();
+  //      break;
+  //  }
+    if (!waiting) {
+        this._waitMode = '';
+    }
+    return waiting;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.executeCommand = function() {
+    var command = this.currentCommand();
+    if (command) {
+        this._params = command.parameters;
+        this._indent = command.indent;
+        if (!_commandCallbackMap[command.methodName]()) {
+            return false;
+        }
+        this._index++;
+    } else {
+        this.terminate();
+    }
+    return true;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.terminate = function() {
+    this._list = null;
+    this._comments = '';
+};
+
+/** */
+LMBS_InterpreterBase.prototype.currentCommand = function() {
+    return this._list[this._index];
+};
+
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_ActionInterpreter() { this.initialize.apply(this, arguments); }
+LMBS_ActionInterpreter.prototype = Object.create(LMBS_InterpreterBase.prototype);
+LMBS_ActionInterpreter.prototype.constructor = LMBS_ActionInterpreter;
+
+/** constructor */
+LMBS_ActionInterpreter.prototype.initialize = function(ownerBattlerObj, commandCallbackMap) {
+    LMBS_InterpreterBase.prototype.initialize.call(this, ownerBattlerObj, commandCallbackMap);
+    this._predefinedAction = null;
+};
+
+/** */
+LMBS_ActionInterpreter.prototype.setupCommandListAction = function(list) {
+    LMBS_InterpreterBase.prototype.setup.call(this, list);
+    this._predefinedAction = null;
+};
+
+/** */
+LMBS_ActionInterpreter.prototype.setupPredefinedAction = function(action) {
+    this.clear();
+    this._predefinedAction = action;
+};
+
+
+/** */
+LMBS_ActionInterpreter.prototype.predefinedAction = function() {
+    return this._predefinedAction;
+};
+
+/** */
+LMBS_ActionInterpreter.prototype.update = function() {
+    if (this._predefinedAction != null) {
+        this._predefinedAction.onUpdate(this.ownerBattlerObj());
+    }
+    else {
+        LMBS_InterpreterBase.prototype.update.call(this);
+    }
+};
