@@ -25,7 +25,7 @@ LMBS_Body.prototype.initialize = function() {
 *
 */
 LMBS_Body.prototype.setPosition = function(x, y) {
- this._body.SetPosition(new Box2D.Common.Math.b2Vec2(x, y));
+  this._body.SetPosition(new Box2D.Common.Math.b2Vec2(x, y));
 }
 
 /**
@@ -45,11 +45,35 @@ LMBS_Body.prototype.applyForce = function(x, y) {
 /**
  *
  */
+LMBS_Body.prototype.applyImpulse = function(x, y) {
+    this._body.ApplyImpulse(new Box2D.Common.Math.b2Vec2(x, y), this._body.GetWorldCenter());
+}
+
+/**
+ *
+ */
 LMBS_Body.prototype.applyMovement = function(x, y) {
-  console.log(x);
     this._body.SetLinearVelocity(new Box2D.Common.Math.b2Vec2(x, y));
     if (this._body.IsAwake() == false) {
         this._body.SetAwake(true);
+    }
+}
+
+/**
+ *  callback(thisBody, otherBody)
+ */
+LMBS_Body.prototype.forEachContacts = function(callback) {
+    for (var edge = this._body.GetContactList(); edge; edge = edge.m_next) // b2ContactEdge
+    {
+        var c = edge.contact;
+        var b1 = c.GetFixtureA().GetBody();
+        var b2 = c.GetFixtureB().GetBody();
+        if (b1 == this._body) {
+            callback(b1.GetUserData(), b2.GetUserData());
+        }
+        else {
+            callback(b2.GetUserData(), b1.GetUserData());
+        }
     }
 }
 
@@ -174,6 +198,7 @@ LMBS_BoxBody.prototype.constructor = LMBS_BoxBody;
 
      this._body = LMBS_SceneGraph.world.CreateBody(bodyDef);
      this._body.CreateFixture(fixDef);
+     this._body.SetUserData(this);
  }
 
 /**

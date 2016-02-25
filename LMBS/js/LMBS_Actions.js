@@ -41,6 +41,7 @@ LMBS_ActionManager._actions   = {};
 LMBS_ActionManager.setup = function() {
     this.registerAction(new LMBS_IdleAction("Idle"));
     this.registerAction(new LMBS_WalkAction("Walk"));
+    this.registerAction(new LMBS_JumpAction("Jump"));
 }
 
 /**
@@ -88,6 +89,14 @@ LMBS_Action.prototype.onUserInput = function(battlerObj) {
 LMBS_Action.prototype.onUpdate = function(battlerObj) {
 }
 
+/** 新しく接地したとき */
+LMBS_Action.prototype.onStandGround = function(battlerObj) {
+}
+
+/** 地面から離れた時 */
+LMBS_Action.prototype.onLeaveGround = function(battlerObj) {
+}
+
 //=============================================================================
 /**
  * アイドリング（待機）アクション
@@ -125,6 +134,9 @@ LMBS_IdleAction.prototype.onUserInput = function(battlerObj) {
     else if (Input.dir4 == 6) {
         battlerObj.direction = LMBS_Battler.DIRECTION.RIGHT;
         battlerObj.changeAction("Walk");
+    }
+    if (Input.isPressed('up')) {
+        battlerObj.changeAction("Jump");
     }
 }
 
@@ -195,6 +207,51 @@ LMBS_WalkAction.prototype.onUserInput = function(battlerObj) {
 /**
  *  override
  */
+LMBS_WalkAction.prototype.onUpdate = function(battlerObj) {
+    LMBS_Action.prototype.onUpdate.call(this, battlerObj);
+
+}
+
+
+//=============================================================================
+/**
+ * ジャンプアクション
+ */
+function LMBS_JumpAction() { this.initialize.apply(this, arguments); }
+LMBS_JumpAction.prototype = Object.create(LMBS_Action.prototype);
+LMBS_JumpAction.prototype.constructor = LMBS_JumpAction;
+
+/** constructor */
+LMBS_JumpAction.prototype.initialize = function(name) {
+    LMBS_Action.prototype.initialize.call(this, name);
+}
+
+/** override */
+LMBS_JumpAction.prototype.onAttached = function(battlerObj) {
+    LMBS_Action.prototype.onUpdate.call(this, battlerObj);
+    // モーション開始
+    battlerObj.changeMotion("basic_move");
+
+    battlerObj.mainBody.applyImpulse(0, 1);
+}
+
+/** override */
+LMBS_JumpAction.prototype.onUserInput = function(battlerObj) {
+    LMBS_Action.prototype.onUserInput.call(this, battlerObj);
+    var vel = battlerObj.direction;
+    if (Input.isPressed('left')) {
+        battlerObj.mainBody.applyMovement(vel, 0);
+    }
+    else if (Input.isPressed('right')) {
+        battlerObj.mainBody.applyMovement(vel, 0);
+    }
+    else {
+        // キーが押されていなければ Idle 状態へ
+        //battlerObj.changeAction("Idle");
+    }
+}
+
+/** override */
 LMBS_WalkAction.prototype.onUpdate = function(battlerObj) {
     LMBS_Action.prototype.onUpdate.call(this, battlerObj);
 

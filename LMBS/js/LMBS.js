@@ -80,6 +80,7 @@ LMBS_SceneGraph._objectList   = [];
 LMBS_SceneGraph._physicsBodyList   = [];
 LMBS_SceneGraph._visualList   = [];
 LMBS_SceneGraph._camera       = null;
+LMBS_SceneGraph._groundBody       = null;
 
 LMBS_SceneGraph.initialize = function() {
     this.clear();
@@ -106,8 +107,8 @@ LMBS_SceneGraph.setup = function(viewportSprite) {
 		this.world.SetDebugDraw(debugDraw);
     */
 
-    var b = new LMBS_BoxBody(1000, 10, 0);
-    b.setPosition(30/2, -5);
+    this._groundBody = new LMBS_BoxBody(1000, 10, 0);
+    this._groundBody.setPosition(30/2, -5);
 
 
     //this.test = new LMBS_BoxBody(100, 10, 1);
@@ -126,6 +127,10 @@ LMBS_SceneGraph.clear = function() {
 
 LMBS_SceneGraph.getMainCamera = function() {
     return this.camera;
+}
+
+LMBS_SceneGraph.groundBody = function() {
+    return this._groundBody;
 }
 
 LMBS_SceneGraph.addObject = function(obj) {
@@ -344,6 +349,8 @@ LMBS_Battler.prototype.initialize = function() {
     this._forceGroup = 0;
     this._actionTarget = null;          // ターゲットとなっている LMBS_Battler
 
+    this._onGround = false;
+
     this.changeAction("Idle");
 };
 
@@ -421,6 +428,26 @@ LMBS_Battler.prototype.onUpdate = function() {
         this._currentMotion.update(this, this._motionFrameCount);
     }
     this._motionFrameCount++;
+
+    var self = this;
+    var onGround = false;
+    this.mainBody.forEachContacts(function(b1, b2){
+        if (b2 == LMBS_SceneGraph.groundBody()) {
+            onGround = true;
+        }
+    });
+
+    if (onGround != self._onGround) {
+        if (onGround) {
+
+        }
+        else {
+          
+        }
+    }
+
+
+    //
 }
 
 /**
