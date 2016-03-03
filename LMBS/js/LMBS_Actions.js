@@ -7,7 +7,58 @@ var $plugins =
 
 
 
+//=============================================================================
+/**
+ */
+function LMBS_ActionBehavior() { this.initialize.apply(this, arguments); }
+LMBS_ActionBehavior.prototype.constructor = LMBS_ActionBehavior;
 
+/** constructor */
+LMBS_ActionBehavior.prototype.initialize = function(frameRange) {
+    this._frameRange = frameRange;  // 要素数 2 で、[開始フレーム][フレーム数]
+};
+
+/** */
+LMBS_ActionBehavior.prototype.isValidInFrame = function(frameCount) {
+    if (this._frameRange == null || this._frameRange[0] < 0) {
+        return true;
+    }
+    if (this._frameRange[0] <= frameCount && frameCount < this._frameRange[0] + this._frameRange[1]) {
+        return true;
+    }
+    return false;
+};
+
+/** */
+LMBS_ActionBehavior.prototype.onUpdate = function(battlerObj) {
+};
+
+/** */
+LMBS_ActionBehavior.prototype.onUserInput = function(battlerObj) {
+};
+
+//=============================================================================
+/**
+ * このビヘイビアをもっているかどうかは、AI がスキル開始を判断するざいりょうになる。かも。
+ */
+function LMBS_ActionBehavior_SkillStart() { this.initialize.apply(this, arguments); }
+LMBS_ActionBehavior_SkillStart.prototype = Object.create(LMBS_ActionBehavior.prototype);
+LMBS_ActionBehavior_SkillStart.prototype.constructor = LMBS_ActionBehavior_SkillStart;
+
+/** constructor */
+LMBS_ActionBehavior_SkillStart.prototype.initialize = function() {
+};
+
+/** overiide */
+LMBS_ActionBehavior_SkillStart.prototype.onUpdate = function(battlerObj) {
+};
+
+/** overiide */
+LMBS_ActionBehavior_SkillStart.prototype.onUserInput = function(battlerObj) {
+    if (Input.isTriggered(LMBS_Settings.keyNormalAttack)) {
+        console.log(22222);
+    }
+};
 
 //=============================================================================
 /**
@@ -15,7 +66,7 @@ var $plugins =
  */
 function LMBS_PredefinedUserInput() {
     throw new Error('This is a static class');
-}
+};
 
 /**
  *
@@ -24,7 +75,7 @@ LMBS_PredefinedUserInput.tryInputNormalAttack = function(battlerObj) {
     if (Input.isTriggered(LMBS_Settings.keyNormalAttack)) {
 
     }
-}
+};
 
 //=============================================================================
 /**
@@ -32,32 +83,36 @@ LMBS_PredefinedUserInput.tryInputNormalAttack = function(battlerObj) {
  */
 function LMBS_ActionManager() {
     throw new Error('This is a static class');
-}
+};
 
 LMBS_ActionManager._actions   = {};
 
 /**
  */
 LMBS_ActionManager.setup = function() {
-    this.registerAction(new LMBS_IdleAction("Idle"));
-    this.registerAction(new LMBS_WalkAction("Walk"));
-    this.registerAction(new LMBS_JumpAction("Jump"));
-}
+    this.registerAction({}, new LMBS_IdleAction("Idle", [new LMBS_ActionBehavior_SkillStart([-1,-1])]));
+    this.registerAction({}, new LMBS_WalkAction("Walk", []));
+    this.registerAction({}, new LMBS_JumpAction("Jump", []));
+    this.registerAction({}, new LMBS_FallAction("Fall", []));
+};
 
 /**
  * @param name {String}
  * @param motion {LMBS_Motion}
+ * condition
+ *    今のところ、多分連続攻撃回数だけでいい気もする。
+ *    通常攻撃はもちろんのこと、Gだと同じ技を連続で出すと動作が変わる。
  */
-LMBS_ActionManager.registerAction = function(action) {
+LMBS_ActionManager.registerAction = function(condition,/*actorId, classId, weaponId,*/ action) {
     this._actions[action.name] = action;
-}
+};
 
 /**
  * @param name {String}
  */
 LMBS_ActionManager.getAction = function(name) {
     return this._actions[name];
-}
+};
 
 //=============================================================================
 // LMBS_Action
@@ -70,32 +125,42 @@ LMBS_Action.prototype.constructor = LMBS_Action;
 /**
  * constructor
  */
-LMBS_Action.prototype.initialize = function(name) {
+LMBS_Action.prototype.initialize = function(name, behaviors) {
     this.name = name;
-}
+    this._behaviors = behaviors;
+};
+
+/** */
+LMBS_Action.prototype.getCommandList = function() {
+    return null;
+};
 
 /**
  */
 LMBS_Action.prototype.onAttached = function(battlerObj) {
-}
-
-/**
- */
-LMBS_Action.prototype.onUserInput = function(battlerObj) {
-}
+};
 
 /**
  */
 LMBS_Action.prototype.onUpdate = function(battlerObj) {
-}
+};
 
 /** 新しく接地したとき */
 LMBS_Action.prototype.onStandGround = function(battlerObj) {
-}
+};
 
 /** 地面から離れた時 */
 LMBS_Action.prototype.onLeaveGround = function(battlerObj) {
-}
+};
+
+/** */
+LMBS_Action.prototype.onUserInput = function(battlerObj) {
+    this._behaviors.forEach(function(behavior) {
+        if (behavior.isValidInFrame(battlerObj.getActionRunner().getFrameCount())) {
+            behavior.onUserInput(battlerObj);
+        }
+    });
+};
 
 //=============================================================================
 /**
@@ -110,9 +175,9 @@ LMBS_IdleAction.prototype.constructor = LMBS_IdleAction;
 /**
  * constructor
  */
-LMBS_IdleAction.prototype.initialize = function(name) {
-    LMBS_Action.prototype.initialize.call(this, name);
-}
+LMBS_IdleAction.prototype.initialize = function(name, behaviors) {
+    LMBS_Action.prototype.initialize.call(this, name, behaviors);
+};
 
 /**
  *  override
@@ -121,7 +186,7 @@ LMBS_IdleAction.prototype.onAttached = function(battlerObj) {
     LMBS_Action.prototype.onUpdate.call(this, battlerObj);
     // モーション開始
     battlerObj.changeMotion("basic_wait");
-}
+};
 
 /**
  */
@@ -138,7 +203,7 @@ LMBS_IdleAction.prototype.onUserInput = function(battlerObj) {
     if (Input.isPressed('up')) {
         battlerObj.changeAction("Jump");
     }
-}
+};
 
 /**
  *  override
@@ -152,7 +217,7 @@ LMBS_IdleAction.prototype.onUpdate = function(battlerObj) {
         var d = target.position.x - battlerObj.position.x;
         battlerObj.direction = d / Math.abs(d); // 正規化。1Dなのでこれでいい。
     }
-}
+};
 
 //=============================================================================
 /**
@@ -167,9 +232,9 @@ LMBS_WalkAction.prototype.constructor = LMBS_WalkAction;
 /**
  * constructor
  */
-LMBS_WalkAction.prototype.initialize = function(name) {
-    LMBS_Action.prototype.initialize.call(this, name);
-}
+LMBS_WalkAction.prototype.initialize = function(name, behaviors) {
+    LMBS_Action.prototype.initialize.call(this, name, behaviors);
+};
 
 /**
  *  override
@@ -184,7 +249,7 @@ LMBS_WalkAction.prototype.onAttached = function(battlerObj) {
     //var mirror = data.mirror;
     //var delay = animation.position === 3 ? 0 : data.delay;
     //battlerObj._visual.mainSprite.startAnimation(animation, false, 0);
-}
+};
 
 /**
  *  override
@@ -193,24 +258,23 @@ LMBS_WalkAction.prototype.onUserInput = function(battlerObj) {
     LMBS_Action.prototype.onUserInput.call(this, battlerObj);
     var vel = battlerObj.direction;
     if (Input.isPressed('left')) {
-        battlerObj.mainBody.applyMovement(vel, 0);
+        battlerObj.mainBody.applyMovement(vel);
     }
     else if (Input.isPressed('right')) {
-        battlerObj.mainBody.applyMovement(vel, 0);
+        battlerObj.mainBody.applyMovement(vel);
     }
     else {
         // キーが押されていなければ Idle 状態へ
         battlerObj.changeAction("Idle");
     }
-}
+};
 
 /**
  *  override
  */
 LMBS_WalkAction.prototype.onUpdate = function(battlerObj) {
     LMBS_Action.prototype.onUpdate.call(this, battlerObj);
-
-}
+};
 
 
 //=============================================================================
@@ -222,188 +286,143 @@ LMBS_JumpAction.prototype = Object.create(LMBS_Action.prototype);
 LMBS_JumpAction.prototype.constructor = LMBS_JumpAction;
 
 /** constructor */
-LMBS_JumpAction.prototype.initialize = function(name) {
-    LMBS_Action.prototype.initialize.call(this, name);
-}
+LMBS_JumpAction.prototype.initialize = function(name, behaviors) {
+    LMBS_Action.prototype.initialize.call(this, name, behaviors);
+};
 
 /** override */
 LMBS_JumpAction.prototype.onAttached = function(battlerObj) {
     LMBS_Action.prototype.onUpdate.call(this, battlerObj);
-    // モーション開始
-    battlerObj.changeMotion("basic_move");
-
-    battlerObj.mainBody.applyImpulse(0, 1);
-}
+    battlerObj.changeMotion("Jump");
+    battlerObj.mainBody.applyImpulse(0, 5);
+};
 
 /** override */
 LMBS_JumpAction.prototype.onUserInput = function(battlerObj) {
     LMBS_Action.prototype.onUserInput.call(this, battlerObj);
     var vel = battlerObj.direction;
     if (Input.isPressed('left')) {
-        battlerObj.mainBody.applyMovement(vel, 0);
+        battlerObj.mainBody.applyMovement(-vel);
     }
     else if (Input.isPressed('right')) {
-        battlerObj.mainBody.applyMovement(vel, 0);
+        battlerObj.mainBody.applyMovement(vel);
     }
     else {
         // キーが押されていなければ Idle 状態へ
         //battlerObj.changeAction("Idle");
     }
-}
+};
 
 /** override */
-LMBS_WalkAction.prototype.onUpdate = function(battlerObj) {
+LMBS_JumpAction.prototype.onUpdate = function(battlerObj) {
     LMBS_Action.prototype.onUpdate.call(this, battlerObj);
+    // 降下し始めた時
+    if (battlerObj.mainBody.getVelocity().y <= 0) {
+        battlerObj.changeHomeAction();
+    }
+};
 
+/** override */
+LMBS_JumpAction.prototype.onStandGround = function(battlerObj) {
+    battlerObj.changeAction("Idle");
+};
+
+
+//=============================================================================
+/**
+ * 降下
+ */
+function LMBS_FallAction() { this.initialize.apply(this, arguments); }
+LMBS_FallAction.prototype = Object.create(LMBS_Action.prototype);
+LMBS_FallAction.prototype.constructor = LMBS_JumpAction;
+
+/** constructor */
+LMBS_FallAction.prototype.initialize = function(name, behaviors) {
+    LMBS_Action.prototype.initialize.call(this, name, behaviors);
+};
+
+/** override */
+LMBS_FallAction.prototype.onAttached = function(battlerObj) {
+    LMBS_Action.prototype.onUpdate.call(this, battlerObj);
+    battlerObj.changeMotion("Fall");
+};
+
+/** override */
+LMBS_FallAction.prototype.onUserInput = function(battlerObj) {
+    LMBS_Action.prototype.onUserInput.call(this, battlerObj);
+    var vel = battlerObj.direction;
+    if (Input.isPressed('left')) {
+        battlerObj.mainBody.applyMovement(-vel);
+    }
+    else if (Input.isPressed('right')) {
+        battlerObj.mainBody.applyMovement(vel);
+    }
+};
+
+/** override */
+LMBS_FallAction.prototype.onStandGround = function(battlerObj) {
+    battlerObj.changeAction("Idle");
 }
-
 
 //=============================================================================
 /**
  *
  */
-function LMBS_InterpreterBase() { this.initialize.apply(this, arguments); }
-LMBS_InterpreterBase.prototype.constructor = LMBS_InterpreterBase;
+function LMBS_ActionRunner() { this.initialize.apply(this, arguments); }
+//LMBS_ActionRunner.prototype = Object.create(LMBS_InterpreterBase.prototype);
+LMBS_ActionRunner.prototype.constructor = LMBS_ActionRunner;
 
 /** constructor */
-LMBS_InterpreterBase.prototype.initialize = function(ownerBattlerObj, commandCallbackMap) {
-    this.clear();
+LMBS_ActionRunner.prototype.initialize = function(ownerBattlerObj) {
+    //LMBS_InterpreterBase.prototype.initialize.call(this, ownerBattlerObj, commandCallbackMap);
     this._ownerBattlerObj = ownerBattlerObj;
-    this._commandCallbackMap = commandCallbackMap;
-}
-
-/** */
-LMBS_InterpreterBase.prototype.ownerBattlerObj = function(list) {
-    return this._ownerBattlerObj;
+    this._action = null;
+    this._interpreter = new LMBS_InterpreterBase(ownerBattlerObj, null);
+    this._frameCount = 0;
 };
 
 /** */
-LMBS_InterpreterBase.prototype.clear = function() {
-    this._list = null;
-    this._index = 0;
-    this._waitCount = 0;
-    this._waitMode = '';
-    this._params = null;
-    this._indent = 0;
+LMBS_ActionRunner.prototype.getAction = function() {
+    return this._action;
 };
 
 /** */
-LMBS_InterpreterBase.prototype.setup = function(list) {
-    this.clear();
-    this._list = list;
+LMBS_ActionRunner.prototype.getFrameCount = function() {
+    return this._frameCount;
 };
 
 /** */
-LMBS_InterpreterBase.prototype.isRunning = function() {
-    return !!this._list;
-};
-
-/** */
-LMBS_InterpreterBase.prototype.update = function() {
-    while (this.isRunning()) {
-        if (this.updateWait()) {
-            break;
-        }
-        if (!this.executeCommand()) {
-            break;
-        }
+LMBS_ActionRunner.prototype.changeAction = function(name) {
+    // 適用中アクションと同じものなら何もしない
+    if (this._action != null && this._action.name == name) {
+        return;
     }
-}
-
-/** */
-LMBS_InterpreterBase.prototype.updateWait = function() {
-    return this.updateWaitCount() || this.updateWaitMode();
+    this._frameCount = 0;
+    var action = LMBS_ActionManager.getAction(name);
+    action.onAttached(this._ownerBattlerObj);
+    this._action = action;
+    this._interpreter.setup(action.getCommandList());
 };
 
 /** */
-LMBS_InterpreterBase.prototype.updateWaitCount = function() {
-    if (this._waitCount > 0) {
-        this._waitCount--;
-        return true;
+LMBS_ActionRunner.prototype.update = function() {
+    this._interpreter.update();
+    if (this._action != null) {
+        this._action.onUpdate(this._ownerBattlerObj);
     }
-    return false;
+    this._frameCount++;
 };
 
-/** */
-LMBS_InterpreterBase.prototype.updateWaitMode = function() {
-    var waiting = false;
-    //switch (this._waitMode) {
-    //case 'message':
-  //      waiting = $gameMessage.isBusy();
-  //      break;
-  //  }
-    if (!waiting) {
-        this._waitMode = '';
+/** 新しく接地したとき */
+LMBS_ActionRunner.prototype.onStandGround = function() {
+    if (this._action != null) {
+        this._action.onStandGround(this._ownerBattlerObj);
     }
-    return waiting;
 };
 
-/** */
-LMBS_InterpreterBase.prototype.executeCommand = function() {
-    var command = this.currentCommand();
-    if (command) {
-        this._params = command.parameters;
-        this._indent = command.indent;
-        if (!_commandCallbackMap[command.methodName]()) {
-            return false;
-        }
-        this._index++;
-    } else {
-        this.terminate();
-    }
-    return true;
-};
-
-/** */
-LMBS_InterpreterBase.prototype.terminate = function() {
-    this._list = null;
-    this._comments = '';
-};
-
-/** */
-LMBS_InterpreterBase.prototype.currentCommand = function() {
-    return this._list[this._index];
-};
-
-
-//=============================================================================
-/**
- *
- */
-function LMBS_ActionInterpreter() { this.initialize.apply(this, arguments); }
-LMBS_ActionInterpreter.prototype = Object.create(LMBS_InterpreterBase.prototype);
-LMBS_ActionInterpreter.prototype.constructor = LMBS_ActionInterpreter;
-
-/** constructor */
-LMBS_ActionInterpreter.prototype.initialize = function(ownerBattlerObj, commandCallbackMap) {
-    LMBS_InterpreterBase.prototype.initialize.call(this, ownerBattlerObj, commandCallbackMap);
-    this._predefinedAction = null;
-};
-
-/** */
-LMBS_ActionInterpreter.prototype.setupCommandListAction = function(list) {
-    LMBS_InterpreterBase.prototype.setup.call(this, list);
-    this._predefinedAction = null;
-};
-
-/** */
-LMBS_ActionInterpreter.prototype.setupPredefinedAction = function(action) {
-    this.clear();
-    this._predefinedAction = action;
-};
-
-
-/** */
-LMBS_ActionInterpreter.prototype.predefinedAction = function() {
-    return this._predefinedAction;
-};
-
-/** */
-LMBS_ActionInterpreter.prototype.update = function() {
-    if (this._predefinedAction != null) {
-        this._predefinedAction.onUpdate(this.ownerBattlerObj());
-    }
-    else {
-        LMBS_InterpreterBase.prototype.update.call(this);
+/** 地面から離れた時 */
+LMBS_ActionRunner.prototype.onLeaveGround = function() {
+    if (this._action != null) {
+        this._action.onLeaveGround(this._ownerBattlerObj);
     }
 };

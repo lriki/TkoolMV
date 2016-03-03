@@ -36,6 +36,13 @@ LMBS_Body.prototype.getPosition = function() {
 }
 
 /**
+*   @return {b2Vec2}
+*/
+LMBS_Body.prototype.getVelocity = function() {
+   return this._body.GetLinearVelocity();
+}
+
+/**
  *
  */
 LMBS_Body.prototype.applyForce = function(x, y) {
@@ -52,8 +59,8 @@ LMBS_Body.prototype.applyImpulse = function(x, y) {
 /**
  *
  */
-LMBS_Body.prototype.applyMovement = function(x, y) {
-    this._body.SetLinearVelocity(new Box2D.Common.Math.b2Vec2(x, y));
+LMBS_Body.prototype.applyMovement = function(x) {
+    this._body.SetLinearVelocity(new Box2D.Common.Math.b2Vec2(x, this._body.GetLinearVelocity().y));
     if (this._body.IsAwake() == false) {
         this._body.SetAwake(true);
     }

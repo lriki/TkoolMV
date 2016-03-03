@@ -27,6 +27,8 @@ LMBS_MotionManager._motions   = {};
 LMBS_MotionManager.setup = function() {
     this.registerMotion(new LMBS_Motion_Idle_SvSprite("basic_wait"));
     this.registerMotion(new LMBS_Motion_WalkFront_SvSprite("basic_move"));
+    this.registerMotion(new LMBS_TimelineMotion("Jump", [[0, "Pattern", 3]]));
+    this.registerMotion(new LMBS_TimelineMotion("Fall", [[0, "Pattern", 45]]));
 }
 
 /**
@@ -61,6 +63,11 @@ LMBS_Motion.prototype.initialize = function(name) {
  */
 LMBS_Motion.prototype.getSupportVisualType = function() {
     return 0;
+};
+
+/** */
+LMBS_Motion.prototype.getCommandList = function() {
+    return null;
 };
 
 /**
@@ -146,3 +153,77 @@ LMBS_Motion_WalkFront_SvSprite.prototype.update = function(battler, frameCount) 
         battler._visual.mainSprite.setFrame(192, 0, 64, 64);
     }
 }
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_TimelineMotion() { this.initialize.apply(this, arguments); }
+LMBS_TimelineMotion.prototype = Object.create(LMBS_Motion.prototype);
+LMBS_TimelineMotion.prototype.constructor = LMBS_TimelineMotion;
+
+/** constructor */
+LMBS_TimelineMotion.prototype.initialize = function(name, keyFrameList) {
+    LMBS_Motion.prototype.initialize.call(this, name);
+    this._keyFrameList = keyFrameList;
+}
+
+/** override */
+LMBS_TimelineMotion.prototype.update = function(battler, frameCount) {
+    for (var i = 0; i < this._keyFrameList.length; i++) {
+        var key = this._keyFrameList[i];
+        if (key[0] == frameCount) {
+            this.executeKeyFrame(key, battler);
+        }
+    }
+}
+
+/** override */
+LMBS_TimelineMotion.prototype.executeKeyFrame = function(key, battler) {
+    switch (key[1]) {
+      case "Pattern":
+        var size = 64;
+        battler._visual.mainSprite.setFrame((key[2] % 9) * size, Math.floor(key[2] / 9) * size, size, size);
+        break;
+    }
+}
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_MotionRunner() { this.initialize.apply(this, arguments); }
+LMBS_MotionRunner.prototype.constructor = LMBS_MotionRunner;
+
+/** constructor */
+LMBS_MotionRunner.prototype.initialize = function(ownerBattlerObj) {
+    //LMBS_InterpreterBase.prototype.initialize.call(this, ownerBattlerObj, commandCallbackMap);
+    this._ownerBattlerObj = ownerBattlerObj;
+    this._motion = null;
+    this._interpreter = new LMBS_InterpreterBase(ownerBattlerObj, null);
+};
+
+/** */
+LMBS_MotionRunner.prototype.getMotion = function() {
+    return this._motion;
+}
+
+/** */
+LMBS_MotionRunner.prototype.changeMotion = function(name) {
+    // 適用中モーションと同じものなら何もしない
+    if (this._motion != null && this._motion.name == name) {
+        return;
+    }
+    this._frameCount = 0;
+    this._motion = LMBS_MotionManager.getMotion(name);
+    this._interpreter.setup(this._motion.getCommandList());
+};
+
+/** */
+LMBS_MotionRunner.prototype.update = function() {
+    this._interpreter.update();
+    if (this._motion != null) {
+        this._motion.update(this._ownerBattlerObj, this._frameCount);
+    }
+    this._frameCount++;
+};

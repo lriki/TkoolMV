@@ -66,6 +66,115 @@ LMBS_Settings.keyShiftOperatingActor = 'control';
 LMBS_Settings.keyNormalAttack = 'ok';  // 通常攻撃
 
 
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_InterpreterBase() { this.initialize.apply(this, arguments); }
+LMBS_InterpreterBase.prototype.constructor = LMBS_InterpreterBase;
+
+/** constructor */
+LMBS_InterpreterBase.prototype.initialize = function(ownerBattlerObj, commandCallbackMap) {
+    this.clear();
+    this._ownerBattlerObj = ownerBattlerObj;
+    this._commandCallbackMap = commandCallbackMap;
+}
+
+/** */
+LMBS_InterpreterBase.prototype.ownerBattlerObj = function(list) {
+    return this._ownerBattlerObj;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.clear = function() {
+    this._list = null;
+    this._index = 0;
+    this._waitCount = 0;
+    this._waitMode = '';
+    this._params = null;
+    this._indent = 0;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.setup = function(list) {
+    this.clear();
+    this._list = list;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.isRunning = function() {
+    return !!this._list;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.update = function() {
+    while (this.isRunning()) {
+        if (this.updateWait()) {
+            break;
+        }
+        if (!this.executeCommand()) {
+            break;
+        }
+    }
+}
+
+/** */
+LMBS_InterpreterBase.prototype.updateWait = function() {
+    return this.updateWaitCount() || this.updateWaitMode();
+};
+
+/** */
+LMBS_InterpreterBase.prototype.updateWaitCount = function() {
+    if (this._waitCount > 0) {
+        this._waitCount--;
+        return true;
+    }
+    return false;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.updateWaitMode = function() {
+    var waiting = false;
+    //switch (this._waitMode) {
+    //case 'message':
+  //      waiting = $gameMessage.isBusy();
+  //      break;
+  //  }
+    if (!waiting) {
+        this._waitMode = '';
+    }
+    return waiting;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.executeCommand = function() {
+    var command = this.currentCommand();
+    if (command) {
+        this._params = command.parameters;
+        this._indent = command.indent;
+        if (!_commandCallbackMap[command.methodName]()) {
+            return false;
+        }
+        this._index++;
+    } else {
+        this.terminate();
+    }
+    return true;
+};
+
+/** */
+LMBS_InterpreterBase.prototype.terminate = function() {
+    this._list = null;
+    this._comments = '';
+};
+
+/** */
+LMBS_InterpreterBase.prototype.currentCommand = function() {
+    return this._list[this._index];
+};
+
+
 //=============================================================================
 // LMBS_SceneGraph
 //=============================================================================
@@ -341,10 +450,11 @@ LMBS_Battler.prototype.initialize = function() {
     this.position = new LMBS_Vector3();           // 足元の位置 (ワールド空間)
     this.direction = LMBS_Battler.DIRECTION.LEFT;
     this._visual = null;
-    this._currentMotion = null;
-    this._motionFrameCount = 0;
-    this._actionInterpreter = new LMBS_ActionInterpreter(this, null);
-    this._actionFrameCount = 0;
+    this._motionRunner = new LMBS_MotionRunner(this);
+    //this._motionFrameCount = 0;
+    this._actionRunner = new LMBS_ActionRunner(this);
+    //this._actionFrameCount = 0;
+    this._skillChainRunner = new LMBS_SkillChainRunner(this);
 
     this._forceGroup = 0;
     this._actionTarget = null;          // ターゲットとなっている LMBS_Battler
@@ -352,7 +462,7 @@ LMBS_Battler.prototype.initialize = function() {
     this._onGround = false;
 
     this.changeAction("Idle");
-};
+};;
 
 /**
  *  (座標とサイズはワールド空間ベース)
@@ -368,42 +478,52 @@ LMBS_Battler.prototype.setupComponents = function(x, y, width, height, forceGrou
     // 初期位置として覚えておく
     this.position.x = x;
     this.position.y = y;
-}
+};
 
 /**
  *
  */
 LMBS_Battler.prototype.forceGroup = function() {
     return this._forceGroup;
-}
+};
+
+/** */
+LMBS_Battler.prototype.getMotionRunner = function() {
+    return this._motionRunner;
+};
+
+/** */
+LMBS_Battler.prototype.getActionRunner = function() {
+    return this._actionRunner;
+};
 
 /**
  *
  */
 LMBS_Battler.prototype.setActionTargetBattlerObject = function(battlerObj) {
     this._actionTarget = battlerObj;
-}
+};
 
 /**
  *
  */
 LMBS_Battler.prototype.getActionTargetBattlerObject = function() {
     return this._actionTarget;
-}
+};
 
 /**
  *
  */
 LMBS_Battler.prototype.motionFrameCount = function() {
     return this._motionFrameCount;
-}
+};
 
 /**
  *
  */
 LMBS_Battler.prototype.actionFrameCount = function() {
     return this._actionFrameCount;
-}
+};
 
 /**
  *  override
@@ -420,16 +540,11 @@ LMBS_Battler.prototype.onUpdate = function() {
     this._visual.setDirection(this.direction);
 
 
-    // アクションの更新
-    this._actionInterpreter.update();
-    //this._actionFrameCount++;
-    // モーションの更新
-    if (this._currentMotion != null) {
-        this._currentMotion.update(this, this._motionFrameCount);
-    }
-    this._motionFrameCount++;
+    // モーションとアクションの更新
+    this._motionRunner.update();
+    this._actionRunner.update();
 
-    var self = this;
+    //var self = this;
     var onGround = false;
     this.mainBody.forEachContacts(function(b1, b2){
         if (b2 == LMBS_SceneGraph.groundBody()) {
@@ -437,45 +552,43 @@ LMBS_Battler.prototype.onUpdate = function() {
         }
     });
 
-    if (onGround != self._onGround) {
+    if (onGround != this._onGround) {
         if (onGround) {
-
+            this._actionRunner.onStandGround();
         }
         else {
-          
+            this._actionRunner.onLeaveGround();
         }
+        this._onGround = onGround;
     }
 
 
     //
-}
+};
 
-/**
- *
- */
+/** */
 LMBS_Battler.prototype.changeMotion = function(name) {
-    // 適用中モーションと同じものなら何もしない
-    if (this._currentMotion != null && this._currentMotion.name == name) {
-        return;
-    }
-    this._currentMotion = LMBS_MotionManager.getMotion(name);
-    this._motionFrameCount = 0;
-}
+    this._motionRunner.changeMotion(name);
+};
 
-/**
- *
- */
+/** */
 LMBS_Battler.prototype.changeAction = function(name) {
-    // 適用中モーションと同じものなら何もしない
-    if (this._actionInterpreter.predefinedAction() != null && this._actionInterpreter.predefinedAction().name == name) {
-        return;
-    }
-    var action = LMBS_ActionManager.getAction(name);
-    action.onAttached(this);
-    this._actionInterpreter.setupPredefinedAction(action);
-    //this._actionFrameCount = 0;
+    this._actionRunner.changeAction(name);
 }
 
+/** */
+LMBS_Battler.prototype.changeHomeAction = function() {
+    if (this._onGround) {
+
+    }
+    else {
+        if (this.mainBody.getVelocity().y <= 0) {
+            this.changeAction("Fall");
+        }
+    }
+    // スキルチェインもリセットする
+    this._skillChainRunner.resetChain();
+}
 
 //=============================================================================
 /**
@@ -503,9 +616,9 @@ LMBS_Actor.prototype.initialize = function(actor) {
 LMBS_Actor.prototype.onUpdate = function() {
     LMBS_Battler.prototype.onUpdate.call(this);
     // ユーザー入力の更新
-    if (this._actionInterpreter.predefinedAction() != null &&
+    if (this._actionRunner.getAction() != null &&
         $gameParty.members().indexOf(this._actor) == BattleManager.userOperationActorIndex) {
-        this._actionInterpreter.predefinedAction().onUserInput(this);
+        this._actionRunner.getAction().onUserInput(this);
     }
     // 武器スプライトの持ち変えチェック
     var weapons = this._actor.weapons();
@@ -542,14 +655,43 @@ LMBS_Enemy.prototype.initialize = function(enemy) {
   //  console.log(15 + this._enemy.screenX() * 15 / 816);
   //  console.log(15 - this._enemy.screenY() * 15 / 444);
 
-}
+};
 
 /**
  *  override
  */
 LMBS_Enemy.prototype.onUpdate = function() {
     LMBS_Battler.prototype.onUpdate.call(this);
-}
+};
+
+//=============================================================================
+/**
+ * - 要求があったら、BattlerObj などの現在の状態から実行可能なスキルのリストを返す。
+ * - ユーザー入力から実行するときは、まず入力により予約したいスキルをこのクラスに問い合わせ、実行できるか確認する。
+ * - AI から実行するときは、現在の実行可能リストからスキルを選択する。
+ */
+function LMBS_SkillChainRunner() { this.initialize.apply(this, arguments); }
+LMBS_SkillChainRunner.prototype.constructor = LMBS_SkillChainRunner;
+
+/** constructor */
+LMBS_SkillChainRunner.prototype.initialize = function(ownerBattlerObj) {
+    this._ownerBattlerObj = ownerBattlerObj;
+    this._normalAttackCount = 0;
+};
+
+/** */
+LMBS_SkillChainRunner.prototype.resetChain = function() {
+    this._normalAttackCount = 0;
+};
+
+/** */
+LMBS_SkillChainRunner.prototype.doNormalAttack = function() {
+    this._normalAttackCount++;
+};
+
+/** */
+LMBS_SkillChainRunner.prototype.update = function() {
+};
 
 //=============================================================================
 // Game_BattlerBase
