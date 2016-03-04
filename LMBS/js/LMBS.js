@@ -579,7 +579,7 @@ LMBS_Battler.prototype.changeAction = function(name) {
 /** */
 LMBS_Battler.prototype.changeHomeAction = function() {
     if (this._onGround) {
-
+        this.changeAction("Idle");
     }
     else {
         if (this.mainBody.getVelocity().y <= 0) {

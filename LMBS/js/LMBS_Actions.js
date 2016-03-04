@@ -37,6 +37,27 @@ LMBS_ActionBehavior.prototype.onUpdate = function(battlerObj) {
 LMBS_ActionBehavior.prototype.onUserInput = function(battlerObj) {
 };
 
+
+//=============================================================================
+/**
+ *  モーションの開始ビヘイビア
+ */
+function LMBS_ActionBehavior_StartMotion() { this.initialize.apply(this, arguments); }
+LMBS_ActionBehavior_StartMotion.prototype = Object.create(LMBS_ActionBehavior.prototype);
+LMBS_ActionBehavior_StartMotion.prototype.constructor = LMBS_ActionBehavior_StartMotion;
+
+/** constructor */
+LMBS_ActionBehavior_StartMotion.prototype.initialize = function(frameRange, motionName) {
+    LMBS_Action.prototype.initialize.call(this, frameRange);
+    this._motionName = motionName;
+};
+
+/** overiide */
+LMBS_ActionBehavior_StartMotion.prototype.onUpdate = function(battlerObj) {
+    battlerObj.changeMotion(this._motionName);
+};
+
+
 //=============================================================================
 /**
  * このビヘイビアをもっているかどうかは、AI がスキル開始を判断するざいりょうになる。かも。
@@ -56,7 +77,7 @@ LMBS_ActionBehavior_SkillStart.prototype.onUpdate = function(battlerObj) {
 /** overiide */
 LMBS_ActionBehavior_SkillStart.prototype.onUserInput = function(battlerObj) {
     if (Input.isTriggered(LMBS_Settings.keyNormalAttack)) {
-        console.log(22222);
+        battlerObj.changeAction("NormalAttack1");
     }
 };
 
@@ -94,6 +115,10 @@ LMBS_ActionManager.setup = function() {
     this.registerAction({}, new LMBS_WalkAction("Walk", []));
     this.registerAction({}, new LMBS_JumpAction("Jump", []));
     this.registerAction({}, new LMBS_FallAction("Fall", []));
+
+    this.registerAction({}, new LMBS_OnceWrapAction("NormalAttack1", 40, [
+      　new LMBS_ActionBehavior_StartMotion([0,1], "NormalAttack1"),
+    ]));
 };
 
 /**
@@ -135,6 +160,11 @@ LMBS_Action.prototype.getCommandList = function() {
     return null;
 };
 
+/** アクションの再生が終了しているか */
+LMBS_Action.prototype.isFinished = function(battlerObj) {
+    return false;
+};
+
 /**
  */
 LMBS_Action.prototype.onAttached = function(battlerObj) {
@@ -143,6 +173,11 @@ LMBS_Action.prototype.onAttached = function(battlerObj) {
 /**
  */
 LMBS_Action.prototype.onUpdate = function(battlerObj) {
+    this._behaviors.forEach(function(behavior) {
+        if (behavior.isValidInFrame(battlerObj.getActionRunner().getFrameCount())) {
+            behavior.onUpdate(battlerObj);
+        }
+    });
 };
 
 /** 新しく接地したとき */
@@ -334,7 +369,7 @@ LMBS_JumpAction.prototype.onStandGround = function(battlerObj) {
  */
 function LMBS_FallAction() { this.initialize.apply(this, arguments); }
 LMBS_FallAction.prototype = Object.create(LMBS_Action.prototype);
-LMBS_FallAction.prototype.constructor = LMBS_JumpAction;
+LMBS_FallAction.prototype.constructor = LMBS_FallAction;
 
 /** constructor */
 LMBS_FallAction.prototype.initialize = function(name, behaviors) {
@@ -362,7 +397,26 @@ LMBS_FallAction.prototype.onUserInput = function(battlerObj) {
 /** override */
 LMBS_FallAction.prototype.onStandGround = function(battlerObj) {
     battlerObj.changeAction("Idle");
-}
+};
+
+//=============================================================================
+/**
+ *
+ */
+function LMBS_OnceWrapAction() { this.initialize.apply(this, arguments); }
+LMBS_OnceWrapAction.prototype = Object.create(LMBS_Action.prototype);
+LMBS_OnceWrapAction.prototype.constructor = LMBS_OnceWrapAction;
+
+/** constructor */
+LMBS_OnceWrapAction.prototype.initialize = function(name, maxFrameCount, behaviors) {
+    LMBS_Action.prototype.initialize.call(this, name, behaviors);
+    this._maxFrameCount = maxFrameCount;
+};
+
+/** override */
+LMBS_OnceWrapAction.prototype.isFinished = function(battlerObj) {
+    return this._maxFrameCount <= battlerObj.getActionRunner().getFrameCount();
+};
 
 //=============================================================================
 /**
@@ -410,7 +464,12 @@ LMBS_ActionRunner.prototype.update = function() {
     if (this._action != null) {
         this._action.onUpdate(this._ownerBattlerObj);
     }
+
     this._frameCount++;
+
+    if (this._action != null && this._action.isFinished(this._ownerBattlerObj)) {
+        this._ownerBattlerObj.changeHomeAction();
+    }
 };
 
 /** 新しく接地したとき */

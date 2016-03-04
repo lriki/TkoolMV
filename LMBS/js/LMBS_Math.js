@@ -5,6 +5,22 @@ var $plugins =
 
 //=============================================================================
 /**
+ * ユーティリティ
+ */
+function LMBS_Math() {
+    throw new Error('This is a static class');
+};
+
+LMBS_Math.degToRad = function(degrees){
+		return degrees * Math.PI / 180.0;
+};
+
+LMBS_Math.radToDeg = function(radians){
+		return radians * 180 / Math.PI;
+};
+
+//=============================================================================
+/**
  * 2Dベクトル
  * @class LMBS_Vector2
  */

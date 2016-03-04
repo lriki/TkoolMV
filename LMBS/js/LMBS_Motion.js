@@ -25,10 +25,52 @@ LMBS_MotionManager._motions   = {};
 /**
  */
 LMBS_MotionManager.setup = function() {
-    this.registerMotion(new LMBS_Motion_Idle_SvSprite("basic_wait"));
+  //  this.registerMotion(new LMBS_Motion_Idle_SvSprite("basic_wait"));
+    this.registerMotion(new LMBS_TimelineMotion("basic_wait", [
+        [0,   "Pattern", 0],
+        [0,   "Weapon1.Angle", 315],   // 時計周り
+        [0,   "Weapon1.Position", 21, 48],
+        [20,  "Pattern", 1],
+        [20,  "Weapon1.Position", 21, 50],
+        [40,  "Pattern", 2],
+        [40,  "Weapon1.Position", 21, 51],
+        [59,  "Goto", 0],
+    ]));
+
     this.registerMotion(new LMBS_Motion_WalkFront_SvSprite("basic_move"));
     this.registerMotion(new LMBS_TimelineMotion("Jump", [[0, "Pattern", 3]]));
     this.registerMotion(new LMBS_TimelineMotion("Fall", [[0, "Pattern", 45]]));
+
+    this.registerMotion(new LMBS_TimelineMotion("NormalAttack1", [
+        [0,   "Pattern", 3],
+        [0,   "Weapon1.Position", 32, 32],
+        [0,   "Weapon1.Angle", 45],   // 時計周り
+        [9,   "Pattern", 4],
+        [9,   "Weapon1.Position", 7, 42],
+        [9,   "Weapon1.Angle", 270],
+        [12,  "Pattern", 13],
+        [12,  "Weapon1.Position", 12, 50],
+        [12,  "Weapon1.Angle", 220],
+    ]));
+    /* TODO: アクターごととか、クラス、武器ごとにモーションを変えたいこともあるかもしれない。
+      - 名前を "Attack:Weapin1" とかにする？
+          or 条件の指定が難しい。
+      - 条件キーは別オブジェクトで表現。_motions map には同名だけど条件の違うモーションを配列で登録。
+
+
+          [0,   "Pattern", 3],
+          [0,   "Weapon1.Position", -64, 64],
+          [0,   "Weapon1.Angle", 0],
+          [9,   "Pattern", 4],
+          [9,   "Weapon1.Position", -64, 64],
+          [9,   "Weapon1.Angle", 90],
+          [20,  "Pattern", 13],
+          [20,  "Weapon1.Position", -64, 64],
+          [20,  "Weapon1.Angle", 180],
+          [30,  "Pattern", 13],
+          [30,  "Weapon1.Position", -64, 64],
+          [30,  "Weapon1.Angle", 270],
+    */
 }
 
 /**
@@ -112,6 +154,7 @@ LMBS_Motion_Idle_SvSprite.prototype.getSupportVisualType = function() {
 
 /** override */
 LMBS_Motion_Idle_SvSprite.prototype.update = function(battler, frameCount) {
+
     var pattern = Math.floor(frameCount / 20) % 3;
     battler._visual.mainSprite.setFrame(pattern * 64, 0, 64, 64);
     battler._visual.weaponSprite().x = -8; // 位置は左向きをベースとしたピクセル単位
@@ -179,11 +222,22 @@ LMBS_TimelineMotion.prototype.update = function(battler, frameCount) {
 }
 
 /** override */
-LMBS_TimelineMotion.prototype.executeKeyFrame = function(key, battler) {
+LMBS_TimelineMotion.prototype.executeKeyFrame = function(key, battlerObj) {
     switch (key[1]) {
       case "Pattern":
-        var size = 64;
-        battler._visual.mainSprite.setFrame((key[2] % 9) * size, Math.floor(key[2] / 9) * size, size, size);
+        var size = 64;  // TODO
+        battlerObj._visual.mainSprite.setFrame((key[2] % 9) * size, Math.floor(key[2] / 9) * size, size, size);
+        break;
+      case "Weapon1.Position":
+        var size = 64;  // TODO
+        battlerObj._visual.weaponSprite().x = key[2] - (battlerObj._visual.mainSprite.anchor.x * size);
+        battlerObj._visual.weaponSprite().y = key[3] - (battlerObj._visual.mainSprite.anchor.y * size);
+        break;
+      case "Weapon1.Angle":
+        battlerObj._visual.weaponSprite().rotation = LMBS_Math.degToRad(key[2]+45);
+        break;
+      case "Goto":
+        battlerObj.getMotionRunner().gotoFrame(key[2]);
         break;
     }
 }
@@ -226,4 +280,9 @@ LMBS_MotionRunner.prototype.update = function() {
         this._motion.update(this._ownerBattlerObj, this._frameCount);
     }
     this._frameCount++;
+};
+
+/** */
+LMBS_MotionRunner.prototype.gotoFrame = function(frameNumber) {
+    this._frameCount = frameNumber-1;
 };

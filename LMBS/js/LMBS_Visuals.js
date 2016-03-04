@@ -139,6 +139,8 @@ LMBS_AnimateSpliteVisual.prototype.initialize = function(battlerName) {
     LMBS_Visual.prototype.initialize.call(this);
 
     this._weaponSprite = new LMBS_Sprite_Weapon();
+    this._weaponSprite.anchor.x = 0.47;
+    this._weaponSprite.anchor.y = 0.81;
     this.addChild(this._weaponSprite);
 
     this.mainSprite = new LMBS_Sprite_Battler();
