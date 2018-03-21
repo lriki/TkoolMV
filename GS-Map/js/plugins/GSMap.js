@@ -15,6 +15,27 @@
     function splitExt(filename) {
         return filename.split(/\.(?=[^.]+$)/);
     }
+
+    var _gsJumpSe = {name: "Evasion1", volume: 80, pitch: 110, pan: 0};
+
+    //-----------------------------------------------------------------------------
+    // SoundManager
+    // 　
+
+    var _SoundManager_preloadImportantSounds = SoundManager.preloadImportantSounds;
+    SoundManager.preloadImportantSounds = function() {
+        _SoundManager_preloadImportantSounds.apply(this, arguments);
+        if ($dataSystem) {
+            // ジャンプ音をシステムサウンドとしてロード
+            AudioManager.loadStaticSe(_gsJumpSe);
+        }
+    };
+
+    SoundManager.playGSJump = function() {
+        if ($dataSystem) {
+            AudioManager.playStaticSe(_gsJumpSe);
+        }
+    };
     
     //-----------------------------------------------------------------------------
     // Game_Map
@@ -109,7 +130,16 @@
             if (this.checkJumpObjectToGround(this._x, this._y, d)) {
                 this.setMovementSuccess(true);
                 this.getOffFromObject();
-                this.jumpToDir(d, 2);
+                this.jumpToDir(d, 2, false);
+            }
+            else {
+                var obj = this.checkJumpObjectToObject(this._x, this._y, d);
+                if (obj != null) {
+                    this.setMovementSuccess(true);
+                    this.getOffFromObject();
+                    this.rideToObject(obj);
+                    this.jumpToDir(d, 2, true);
+                }
             }
             
             this.setDirection(d);
@@ -123,7 +153,7 @@
     
     
                 if (this.isMovementSucceeded()) {
-                    this.jumpToDir(d, 2);
+                    this.jumpToDir(d, 2, false);
                 }
                 else {
                     this.tryJumpGroundToObject(d);
@@ -138,22 +168,31 @@
         if (this.isMovementSucceeded()) {
             // 乗る
             this.rideToObject(obj);
-            this.jumpToDir(d, 2);
+            this.jumpToDir(d, 2, true);
+           // AudioManager.playSe(); 
         }
     };
 
     // 方向と距離を指定してジャンプ開始
-    Game_CharacterBase.prototype.jumpToDir = function(d, len) {
+    Game_CharacterBase.prototype.jumpToDir = function(d, len, toObj) {
         // x1, y1 は小数点以下を調整しない。ジャンプ後に 0.5 オフセット無くなるようにしたい
         var x1 = this._x;
         var y1 = this._y;
+
+        if (!toObj)
+        {
+            // 地面への移動は端数でも普通に平行移動でよい
+            x1 = Math.round(this._x);
+            y1 = Math.round(this._y);
+        }
+
         var x2 = Math.round($gameMap.roundXWithDirectionLong(this._x, d, len));
         var y2 = Math.round($gameMap.roundYWithDirectionLong(this._y, d, len));
         this.jump(x2 - x1, y2 - y1);
+        SoundManager.playGSJump();
     }
 
     Game_CharacterBase.prototype.canPassJumpGroundToGround = function(x, y, d) {
-        
         var x1 = Math.round(x);
         var y1 = Math.round(y);
         var x2 = Math.round($gameMap.roundXWithDirectionLong(x, d, 2));
@@ -174,11 +213,26 @@
             // 移動先が全方位進入禁止。壁とか。
             return false;
         }
-        if (this.isCollidedWithCharacters(x2, y2)) {
-            // 移動先にキャラクターがいる
-            return false;
+        if (y - Math.floor(y) != 0 && (d == 4 || d == 6)) {
+            // 縦方向に端数位置にいるときはイベントの後ろに隠れるようにジャンプできる。
+            // これは HalfMove.js に合わせた仕様。不都合があればこの if 自体削除する。
+        }
+        else {
+            if (this.isCollidedWithCharacters(x2, y2)) {
+                // 移動先にキャラクターがいる
+                return false;
+            }
         }
 
+        /*
+        if (x - Math.floor(x) != 0 || y - Math.floor(y) != 0) {
+            // 中途半端な座標にいるときは、今いる座標にイベントがないかチェック。
+            // ※看板の裏から横にジャンプしたとき、戻ってこれない対策
+            if (this.isCollidedWithCharacters(x1, y1)) {
+                return false;
+            }
+        }
+        */
 
         return true;
     }
@@ -301,11 +355,37 @@
             // 移動先から手前に移動できるなら崖ではない
             return false;
         }
+        if ($gameMap.checkNotPassageAll(new_x, new_y))
+        {
+            // 移動先が全方位進入禁止。壁とか。
+            return false;
+        }
         if (this.isCollidedWithCharacters(new_x, new_y)) {
             // 移動先にキャラクターがいる
             return false;
         }
         return true;
+    }
+
+    Game_CharacterBase.prototype.checkJumpObjectToObject = function(x, y, d) {
+        // ジャンプ先座標を求める
+        var new_x = Math.round($gameMap.roundXWithDirectionLong(x, d, 2));
+        var new_y = Math.round($gameMap.roundYWithDirectionLong(y, d, 2));
+
+        // 乗れそうなオブジェクトを探す
+        var events = $gameMap.events();
+        var obj = null;
+        for(var i = 0; i < events.length; i++) {
+            if(events[i].checkPassRide(new_x, new_y)) {
+                obj = events[i];
+                break;
+            };
+        };
+        if (obj) {
+            return obj;
+        }
+
+        return null;
     }
 
     // グローバル座標 x, yから見た時、この obj の上に乗れるか
