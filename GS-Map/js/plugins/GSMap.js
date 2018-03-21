@@ -87,24 +87,70 @@
     // Game_CharacterBase
     // 　
 
+    var _Game_CharacterBase_initMembers = Game_CharacterBase.prototype.initMembers;
+    Game_CharacterBase.prototype.initMembers = function() {
+        _Game_CharacterBase_initMembers.apply(this, arguments);
+        this._ridingCharacterId = -1;
+        this._ridderCharacterId = -1;
+    }
+
+    var _Game_CharacterBase_screenZ = Game_CharacterBase.prototype.screenZ;
+    Game_CharacterBase.prototype.screenZ = function() {
+        var base = _Game_CharacterBase_screenZ.apply(this, arguments);
+        return base + (this.riddingObject() != null ? 5 : 0);
+    };
+
     var _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
     Game_CharacterBase.prototype.moveStraight = function(d) {
-        _Game_CharacterBase_moveStraight.apply(this, arguments);
-        if (!this.isMovementSucceeded()) {
-            this.setMovementSuccess(
-                this.canPassJumpGroundToGround(this._x, this._y, d) ||
-                this.canPassJumpGroove(this._x, this._y, d));
-            if (this.isMovementSucceeded()) {
-                var x1 = Math.round(this._x);
-                var y1 = Math.round(this._y);
-                var x2 = Math.round($gameMap.roundXWithDirectionLong(this._x, d, 2));
-                var y2 = Math.round($gameMap.roundYWithDirectionLong(this._y, d, 2));
-                this.jump(x2 - x1, y2 - y1);
+        if (this.ridding()) {
+            // 何かのオブジェクトに乗っている。
+            // オリジナルの処理を含め、元の移動処理は行わない。
+
+            if (this.checkJumpObjectToGround(this._x, this._y, d)) {
+                this.setMovementSuccess(true);
+                this.getOffFromObject();
+                this.jumpToDir(d, 2);
+            }
+            
+            this.setDirection(d);
+        }
+        else {
+            _Game_CharacterBase_moveStraight.apply(this, arguments);
+            if (!this.isMovementSucceeded()) {
+                this.setMovementSuccess(
+                    this.canPassJumpGroundToGround(this._x, this._y, d) ||
+                    this.canPassJumpGroove(this._x, this._y, d));
+    
+    
+                if (this.isMovementSucceeded()) {
+                    this.jumpToDir(d, 2);
+                }
+                else {
+                    this.tryJumpGroundToObject(d);
+                }
             }
         }
     };
+    
+    Game_CharacterBase.prototype.tryJumpGroundToObject = function(d) {
+        var obj = this.checkJumpGroundToObject(this._x, this._y, d);
+        this.setMovementSuccess(obj != null);
+        if (this.isMovementSucceeded()) {
+            // 乗る
+            this.rideToObject(obj);
+            this.jumpToDir(d, 2);
+        }
+    };
 
-
+    // 方向と距離を指定してジャンプ開始
+    Game_CharacterBase.prototype.jumpToDir = function(d, len) {
+        // x1, y1 は小数点以下を調整しない。ジャンプ後に 0.5 オフセット無くなるようにしたい
+        var x1 = this._x;
+        var y1 = this._y;
+        var x2 = Math.round($gameMap.roundXWithDirectionLong(this._x, d, len));
+        var y2 = Math.round($gameMap.roundYWithDirectionLong(this._y, d, len));
+        this.jump(x2 - x1, y2 - y1);
+    }
 
     Game_CharacterBase.prototype.canPassJumpGroundToGround = function(x, y, d) {
         
@@ -132,8 +178,6 @@
             // 移動先にキャラクターがいる
             return false;
         }
-
-
 
 
         return true;
@@ -174,10 +218,141 @@
 
     // GS オブジェクトとしての高さ。
     // 高さを持たないのは -1。（GSObject ではない）
-    Game_CharacterBase.prototype.gsObjectHeight = function() {
+    Game_CharacterBase.prototype.objectHeight = function() {
         return -1;
+    };
+
+    Game_CharacterBase.prototype.canRide = function() {
+        return this.objectHeight() >= 0;
+    };
+
+    Game_CharacterBase.prototype.ridding = function() {
+        return this._ridingCharacterId >= 0;
+    };
+
+    // 0:プレイヤー, 1~:イベント
+    Game_CharacterBase.prototype.gsObjectId = function() {
+        return -1;
+    };
+
+    // この人が乗っているオブジェクト
+    Game_CharacterBase.prototype.riddingObject = function() {
+        if (this._ridingCharacterId < 0) {
+            return null;
+        }
+        else if (this._ridingCharacterId == 0) {
+            return $gamePlayer;
+        }
+        else {
+            return $gameMap.event(this._ridingCharacterId);
+        }
+    };
+
+    // このオブジェクトに乗っている人
+    Game_CharacterBase.prototype.rider = function() {
+        if (this._ridderCharacterId < 0) {
+            return null;
+        }
+        else if (this._ridderCharacterId == 0) {
+            return $gamePlayer;
+        }
+        else {
+            return $gameMap.event(this._ridderCharacterId);
+        }
+        return null;
+    };
+    
+
+    
+    Game_CharacterBase.prototype.checkJumpGroundToObject = function(x, y, d) {
+        var x1 = Math.round(x);
+        var y1 = Math.round(y);
+        // ジャンプ先座標を求める
+        var new_x = Math.round($gameMap.roundXWithDirectionLong(x, d, 2));
+        var new_y = Math.round($gameMap.roundYWithDirectionLong(y, d, 2));
+        
+        if ($gameMap.isPassable(x1, y1, d)) {
+            // 現在位置から移動できるなら崖ではない
+            return null;
+        }
+
+        // 乗れそうなオブジェクトを探す
+        var events = $gameMap.events();
+        var obj = null;
+        for(var i = 0; i < events.length; i++) {
+            if(events[i].checkPassRide(new_x, new_y)) {
+                obj = events[i];
+                break;
+            };
+        };
+        if (obj) {
+            return obj;
+        }
+
+        return null;
+    }
+    
+    Game_CharacterBase.prototype.checkJumpObjectToGround = function(x, y, d) {
+        // ジャンプ先座標を求める
+        var new_x = Math.round($gameMap.roundXWithDirectionLong(x, d, 2));
+        var new_y = Math.round($gameMap.roundYWithDirectionLong(y, d, 2));
+        var d2 = this.reverseDir(d);
+        if ($gameMap.isPassable(new_x, new_y, d2)) {
+            // 移動先から手前に移動できるなら崖ではない
+            return false;
+        }
+        if (this.isCollidedWithCharacters(new_x, new_y)) {
+            // 移動先にキャラクターがいる
+            return false;
+        }
+        return true;
     }
 
+    // グローバル座標 x, yから見た時、この obj の上に乗れるか
+    Game_CharacterBase.prototype.checkPassRide = function(x, y) {
+        if (this.canRide() && !this.rider()) {
+            var px = Math.round(this._x);
+            var py = Math.round(this._y) - this.objectHeight();
+            if (x == px && y == py) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    
+    Game_CharacterBase.prototype.rideToObject = function(riddenObject) {
+        this._ridingCharacterId = riddenObject.gsObjectId();
+        riddenObject._ridderCharacterId = this.gsObjectId();
+    };
+    
+    Game_CharacterBase.prototype.getOffFromObject = function() {
+        var obj = this.riddingObject();
+        if (obj != null) {
+            obj._ridderCharacterId = -1;
+        }
+        this._ridingCharacterId = -1;
+    }
+    
+    
+    var _Game_CharacterBase_updateMove = Game_CharacterBase.prototype.updateMove;
+    Game_CharacterBase.prototype.updateMove = function() {
+        //var oldm = this.isMoving();
+        _Game_CharacterBase_updateMove.apply(this, arguments);
+        //if (!this.isMoving() && oldm != this.isMoving())
+        //{
+        //    console.log("stop");
+       // }
+    };
+
+    
+    //-----------------------------------------------------------------------------
+    // Game_Player
+    // 　
+
+    Game_Player.prototype.gsObjectId = function() {
+        return 0;
+    };
     
     //-----------------------------------------------------------------------------
     // Game_Event
@@ -189,11 +364,15 @@
 
         this._gsObjectHeight = -1;
         this.parseNoteForGSObj(this.event().note);
-    }
+    };
 
-    Game_CharacterBase.prototype.gsObjectHeight = function() {
+    Game_Event.prototype.gsObjectId = function() {
+        return this.eventId();
+    };
+
+    Game_Event.prototype.objectHeight = function() {
         return this._gsObjectHeight;
-    }
+    };
 
     Game_Event.prototype.parseNoteForGSObj = function(note) {
         var index = note.indexOf("@GSObj");
@@ -215,6 +394,6 @@
                 }
             }
         }
-    }
+    };
     
 })(this);
