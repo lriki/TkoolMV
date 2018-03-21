@@ -16,7 +16,9 @@
         return filename.split(/\.(?=[^.]+$)/);
     }
     
-
+    //-----------------------------------------------------------------------------
+    // Game_Map
+    // 　
     var _Game_Map_setup = Game_Map.prototype.setup;
     Game_Map.prototype.setup = function(mapId) {
         _Game_Map_setup.apply(this, arguments);
@@ -81,6 +83,9 @@
         return false;
     }
 
+    //-----------------------------------------------------------------------------
+    // Game_CharacterBase
+    // 　
 
     var _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
     Game_CharacterBase.prototype.moveStraight = function(d) {
@@ -167,4 +172,49 @@
         return true;
     }
 
+    // GS オブジェクトとしての高さ。
+    // 高さを持たないのは -1。（GSObject ではない）
+    Game_CharacterBase.prototype.gsObjectHeight = function() {
+        return -1;
+    }
+
+    
+    //-----------------------------------------------------------------------------
+    // Game_Event
+    // 　
+    
+    var _Game_Event_initialize = Game_Event.prototype.initialize;
+    Game_Event.prototype.initialize = function(mapId, eventId) {
+        _Game_Event_initialize.apply(this, arguments);
+
+        this._gsObjectHeight = -1;
+        this.parseNoteForGSObj(this.event().note);
+    }
+
+    Game_CharacterBase.prototype.gsObjectHeight = function() {
+        return this._gsObjectHeight;
+    }
+
+    Game_Event.prototype.parseNoteForGSObj = function(note) {
+        var index = note.indexOf("@GSObj");
+        if (index >= 0)
+        {
+            var block = note.substring(index + 6);
+            block = block.substring(
+                block.indexOf("{") + 1,
+                block.indexOf("}"));
+
+            var nvps = block.split(",");
+            for (var i = 0; i < nvps.length; i++) {
+                var tokens = block.split(":");
+                switch (tokens[0])
+                {
+                    case "h":
+                        this._gsObjectHeight = Number(tokens[1]); 
+                        break;
+                }
+            }
+        }
+    }
+    
 })(this);
