@@ -23,3 +23,13 @@ HalfMode も Game_Player.prototype.executeMove をオーバーライドしてる
 ### Game_Map.prototype.isPassable(x, y, d)
 論理座標 xy から d 方向に出られるか
 
+
+### タイルの仕様をコードから追いたいときは
+Tilemap.prototype._drawNormalTile 
+
+
+    if (Tilemap.isTileA5(tileId)) {
+        setNumber = 4;
+    } else {
+        setNumber = 5 + Math.floor(tileId / 256);
+    }
