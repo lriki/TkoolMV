@@ -183,7 +183,13 @@
         {
             // 地面への移動は端数でも普通に平行移動でよい
             x1 = Math.round(this._x);
-            y1 = Math.round(this._y);
+
+            if (d == 2 || d == 8) {
+                // 上下移動の時は端数を捨てて自然な動きに見えるようにする
+            }
+            else {
+                y1 = Math.round(this._y);
+            }
         }
 
         var x2 = Math.round($gameMap.roundXWithDirectionLong(this._x, d, len));
