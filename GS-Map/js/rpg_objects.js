@@ -6381,12 +6381,14 @@ Game_CharacterBase.prototype.reverseDir = function(d) {
 };
 
 Game_CharacterBase.prototype.canPass = function(x, y, d) {
+    // 移動後論理座標
     var x2 = $gameMap.roundXWithDirection(x, d);
     var y2 = $gameMap.roundYWithDirection(y, d);
     if (!$gameMap.isValid(x2, y2)) {
         return false;
     }
     if (this.isThrough() || this.isDebugThrough()) {
+        // すり抜け
         return true;
     }
     if (!this.isMapPassable(x, y, d)) {
@@ -6410,6 +6412,7 @@ Game_CharacterBase.prototype.canPassDiagonally = function(x, y, horz, vert) {
     return false;
 };
 
+// x y 論理座標から d 方向へ出られ、かつ、移動先へ侵入できるか
 Game_CharacterBase.prototype.isMapPassable = function(x, y, d) {
     var x2 = $gameMap.roundXWithDirection(x, d);
     var y2 = $gameMap.roundYWithDirection(y, d);
@@ -6673,6 +6676,7 @@ Game_CharacterBase.prototype.checkEventTriggerTouch = function(x, y) {
     return false;
 };
 
+// 最後に呼び出した moveXXXX系によって、実際に移動できたかどうか
 Game_CharacterBase.prototype.isMovementSucceeded = function(x, y) {
     return this._movementSuccess;
 };
@@ -7625,7 +7629,11 @@ Game_Player.prototype.moveByInput = function() {
             direction = this.findDirectionTo(x, y);
         }
         if (direction > 0) {
+            // 移動可能な状態でキー入力を検出していると毎フレームここに来るようだ。
+            // タッチでもキーでも。
+            // 移動不能でも、壁に向かってキーを押し続けているときもここに来る。
             this.executeMove(direction);
+            // console.log(direction);
         }
     }
 };

@@ -1271,11 +1271,14 @@
     var _Game_Player_executeMove      = Game_Player.prototype.executeMove;
     Game_Player.prototype.executeMove = function(d) {
         if (d % 2 !== 0 && d !== 5) {
+            // 斜め移動
             this.executeDiagonalMove(d);
         } else {
+            // ４方向移動
             _Game_Player_executeMove.apply(this, arguments);
             if (!this.isMovementSucceeded() && this.isHalfMove() &&
                 paramAvoidCorner && !$gameTemp.isDestinationValid() && !$gameMap.isEventRunning()) {
+                // 壁にぶつかってそのままキー押し続けたりするとここに来る
                 this.executeMoveRetry(d);
             }
         }
