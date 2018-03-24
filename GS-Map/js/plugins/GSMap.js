@@ -169,6 +169,64 @@
         return dy;
     };
 
+    MovingHelper.canPassJumpGroove = function(character, x, y, d) {
+        if (d == 2 || d == 8) {
+            //var nearYOffset = y - Math.floor(y);
+            //var jumpLen = 2 - nearYOffset;
+
+            if (MovingHelper.isHalfStepX(character)) {
+                // X半歩状態での上下移動は、移動先隣接2タイルをチェックする。
+                // 両方移動可能ならOK
+    
+                var r1 = MovingHelper.canPassJumpGrooveInternal(character, x - 1.0, y, d, 2);
+                var r2 = MovingHelper.canPassJumpGrooveInternal(character, x, y, d, 2);
+    
+                if (!r1.pass() || !r2.pass()) {
+                    return new MovingResult(false);
+                }
+    
+                return r2;
+            }
+        }
+
+        return MovingHelper.canPassJumpGrooveInternal(character, x, y, d, 2);
+    }
+
+    MovingHelper.canPassJumpGrooveInternal = function(character, x, y, d) {
+        var x1 = Math.round(x);
+        var y1 = Math.round(y);
+        var x2 = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 2));
+        var y2 = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 2));
+        var x3 = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 1));
+        var y3 = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 1));
+        var toX = MovingHelper.roundXWithDirectionLong(x, d, 2);
+        var toY = MovingHelper.roundYWithDirectionLong(y, d, 2);
+        if (!$gameMap.isValid(x2, y2)) {
+            // マップ外
+            return new MovingResult(false);
+        }
+        if (!$gameMap.isPassable(x1, y1, d))
+        {
+            // 現在位置から移動できない
+            return new MovingResult(false);
+        }
+        var d2 = character.reverseDir(d);
+        if (!$gameMap.isPassable(x2, y2, d2))
+        {
+            // 移動先から手前に移動できない
+            return new MovingResult(false);
+        }
+        if (character.isCollidedWithCharacters(toX, toY)) {
+            // 移動先にキャラクターがいる
+            return new MovingResult(false);
+        }
+        if (!$gameMap.checkGroove(x3, y3)) {
+            // 目の前のタイルが溝ではない
+            return new MovingResult(false);
+        }
+        return new MovingResult(true, x2, y2);
+    }
+
     /**
      * 
      * @param {*} x 現在位置X(丸めない)
@@ -341,19 +399,6 @@
                 }
                 else if (this.tryJumpGroundToObject(d)) {
                 }
-
-/*
-                this.setMovementSuccess(
-                    this.canPassJumpGroove(this._x, this._y, d));
-    
-    
-                if (this.isMovementSucceeded()) {
-                    this.jumpToDir(d, 2, false);
-                }
-                else {
-                    this.(d);
-                }
-                */
             }
         }
     };
@@ -379,7 +424,7 @@
     }
     
     Game_CharacterBase.prototype.tryJumpGroove = function(d) {
-        if (this.canPassJumpGroove(this._x, this._y, d).pass()) {
+        if (MovingHelper.canPassJumpGroove(this, this._x, this._y, d).pass()) {
             this.setMovementSuccess(true);
             this.jumpToDir(d, 2, false);
             return true;
@@ -529,40 +574,7 @@
     }
     
 
-    Game_CharacterBase.prototype.canPassJumpGroove = function(x, y, d) {
-        var x1 = Math.round(x);
-        var y1 = Math.round(y);
-        var x2 = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 2));
-        var y2 = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 2));
-        var x3 = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 1));
-        var y3 = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 1));
-        var toX = MovingHelper.roundXWithDirectionLong(x, d, 2);
-        var toY = MovingHelper.roundYWithDirectionLong(y, d, 2);
-        if (!$gameMap.isValid(x2, y2)) {
-            // マップ外
-            return new MovingResult(false);
-        }
-        if (!$gameMap.isPassable(x1, y1, d))
-        {
-            // 現在位置から移動できない
-            return new MovingResult(false);
-        }
-        var d2 = this.reverseDir(d);
-        if (!$gameMap.isPassable(x2, y2, d2))
-        {
-            // 移動先から手前に移動できない
-            return new MovingResult(false);
-        }
-        if (this.isCollidedWithCharacters(toX, toY)) {
-            // 移動先にキャラクターがいる
-            return new MovingResult(false);
-        }
-        if (!$gameMap.checkGroove(x3, y3)) {
-            // 目の前のタイルが溝ではない
-            return new MovingResult(false);
-        }
-        return new MovingResult(true, x2, y2);
-    }
+    
 
     // GS オブジェクトとしての高さ。
     // 高さを持たないのは -1。（GSObject ではない）
