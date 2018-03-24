@@ -207,6 +207,34 @@
         return new MovingResult(true, toX, toY);
     }
 
+    MovingHelper.checkJumpGroundToObject = function(x, y, d) {
+        var x1 = Math.round(x);
+        var y1 = Math.round(y);
+        // 移動先座標を求める
+        var new_x = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 2));
+        var new_y = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 2));
+        
+        if ($gameMap.isPassable(x1, y1, d)) {
+            // 現在位置から移動できるなら崖ではない
+            return null;
+        }
+
+        // 乗れそうなオブジェクトを探す
+        var events = $gameMap.events();
+        var obj = null;
+        for(var i = 0; i < events.length; i++) {
+            if(events[i].checkPassRide(new_x, new_y)) {
+                obj = events[i];
+                break;
+            };
+        };
+        if (obj) {
+            return obj;
+        }
+
+        return null;
+    }
+
     //-----------------------------------------------------------------------------
     // Game_CharacterBase
     // 　
@@ -255,6 +283,8 @@
                 }
                 else if (this.tryJumpGroove(d)) {
                 }
+                else if (this.tryJumpGroundToObject(d)) {
+                }
 
 /*
                 this.setMovementSuccess(
@@ -265,7 +295,7 @@
                     this.jumpToDir(d, 2, false);
                 }
                 else {
-                    this.tryJumpGroundToObject(d);
+                    this.(d);
                 }
                 */
             }
@@ -291,7 +321,7 @@
     }
     
     Game_CharacterBase.prototype.tryJumpGroundToObject = function(d) {
-        var obj = this.checkJumpGroundToObject(this._x, this._y, d);
+        var obj = MovingHelper.checkJumpGroundToObject(this._x, this._y, d);
         this.setMovementSuccess(obj != null);
         if (this.isMovementSucceeded()) {
             // 乗る
@@ -465,33 +495,7 @@
     
 
     
-    Game_CharacterBase.prototype.checkJumpGroundToObject = function(x, y, d) {
-        var x1 = Math.round(x);
-        var y1 = Math.round(y);
-        // ジャンプ先座標を求める
-        var new_x = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 2));
-        var new_y = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 2));
-        
-        if ($gameMap.isPassable(x1, y1, d)) {
-            // 現在位置から移動できるなら崖ではない
-            return null;
-        }
-
-        // 乗れそうなオブジェクトを探す
-        var events = $gameMap.events();
-        var obj = null;
-        for(var i = 0; i < events.length; i++) {
-            if(events[i].checkPassRide(new_x, new_y)) {
-                obj = events[i];
-                break;
-            };
-        };
-        if (obj) {
-            return obj;
-        }
-
-        return null;
-    }
+    
     
     Game_CharacterBase.prototype.checkJumpObjectToGround = function(x, y, d) {
         // ジャンプ先座標を求める
