@@ -36,6 +36,8 @@
             AudioManager.playStaticSe(_gsJumpSe);
         }
     };
+
+    
     
     //-----------------------------------------------------------------------------
     // Game_Map
@@ -104,6 +106,56 @@
         return false;
     }
 
+    
+    //-----------------------------------------------------------------------------
+    // MovingResult
+    //
+
+    function MovingResult() {
+        this.initialize.apply(this, arguments);
+    }
+
+    /**
+     * 
+     * @param {*} pass 成否
+     * @param {*} x 移動先の論理絶対 X 座標
+     * @param {*} y 移動先の論理絶対 Y 座標
+     */
+    MovingResult.prototype.initialize = function(pass, x, y) {
+        this._pass = pass;
+        this._x = x || -1;
+        this._y = y || -1;
+    };
+
+    MovingResult.prototype.pass = function() {
+        return this._pass;
+    };
+
+    MovingResult.prototype.x = function() {
+        return this._x;
+    };
+
+    MovingResult.prototype.y = function() {
+        return this._y;
+    };
+
+    //-----------------------------------------------------------------------------
+    // MovingHelper
+    // 　
+
+    function MovingHelper() {
+        throw new Error('This is a static class');
+    }
+
+    MovingHelper.isHalfStepX = function(character) {
+        return Math.floor(character.x) !== character.x;
+    };
+
+    MovingHelper.isHalfStepY = function(character) {
+        return Math.floor(character.y) !== character.y;
+    };
+
+
     //-----------------------------------------------------------------------------
     // Game_CharacterBase
     // 　
@@ -123,6 +175,7 @@
 
     var _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
     Game_CharacterBase.prototype.moveStraight = function(d) {
+
         if (this.ridding()) {
             // 何かのオブジェクトに乗っている。
             // オリジナルの処理を含め、元の移動処理は行わない。
@@ -147,8 +200,14 @@
         else {
             _Game_CharacterBase_moveStraight.apply(this, arguments);
             if (!this.isMovementSucceeded()) {
+                // 普通の移動ができなかったので特殊な移動を試みる
+                if (this.canPassJumpGroundToGround(this._x, this._y, d).pass()) {
+                    this.setMovementSuccess(true);
+                    this.jumpToDir(d, 2, false);
+                }
+
+/*
                 this.setMovementSuccess(
-                    this.canPassJumpGroundToGround(this._x, this._y, d) ||
                     this.canPassJumpGroove(this._x, this._y, d));
     
     
@@ -158,6 +217,7 @@
                 else {
                     this.tryJumpGroundToObject(d);
                 }
+                */
             }
         }
     };
@@ -203,32 +263,72 @@
         var y1 = Math.round(y);
         var x2 = Math.round($gameMap.roundXWithDirectionLong(x, d, 2));
         var y2 = Math.round($gameMap.roundYWithDirectionLong(y, d, 2));
-        if (!$gameMap.isValid(x2, y2)) {
+
+        if (MovingHelper.isHalfStepX(this) &&
+            (d == 2 || d == 8)) {
+            // 半歩状態での上下移動は、移動先隣接2タイルをチェックする。
+            // 両方移動可能ならOK
+
+            var ax1 = Math.floor(x);
+            var ay1 = Math.floor(y);
+            var ax2 = Math.floor($gameMap.roundXWithDirectionLong(x, d, 2));
+            var ay2 = Math.floor($gameMap.roundYWithDirectionLong(y + 1.0, d, 2));
+
+            var r1 = this.checkJumpGroundToGroundInternal(x1, y1, x2, y2, d);
+            var r2 = this.checkJumpGroundToGroundInternal(ax1, ay1, ax2, ay2, d);
+
+            if (!r1.pass() || !r2.pass()) {
+                return new MovingResult(false);
+            }
+        }
+
+        
+        if (this.isCollidedWithCharacters(x - 2, y)) {
+            console.log("移動先にキャラクターがいる");
+            // 移動先にキャラクターがいる
+            return new MovingResult(false);
+        }
+
+        return this.checkJumpGroundToGroundInternal(x1, y1, x2, y2, d);
+
+
+    }
+    
+    /**
+     * 
+     * @param {*} fromX 丸められた現在位置X
+     * @param {*} fromY 丸められた現在位置X
+     * @param {*} toX 丸められた移動先X
+     * @param {*} toY 丸められた移動先Y
+     * @param {*} d 現在の向き
+     */
+    Game_CharacterBase.prototype.checkJumpGroundToGroundInternal = function(fromX, fromY, toX, toY, d) {
+        if (!$gameMap.isValid(toX, toY)) {
             // マップ外
-            return false;
+            return new MovingResult(false);
         }
         var d2 = this.reverseDir(d);
-        if ($gameMap.isPassable(x1, y1, d) || $gameMap.isPassable(x2, y2, d2))
+        if ($gameMap.isPassable(fromX, fromY, d) || $gameMap.isPassable(toX, toY, d2))
         {
             // 現在位置から移動できるなら崖ではない。
             // 移動先から手前に移動できるなら崖ではない。
-            return false;
+            return new MovingResult(false);
         } 
-        if ($gameMap.checkNotPassageAll(x2, y2))
+        if ($gameMap.checkNotPassageAll(toX, toY))
         {
             // 移動先が全方位進入禁止。壁とか。
-            return false;
+            return new MovingResult(false);
         }
-        if (y - Math.floor(y) != 0 && (d == 4 || d == 6)) {
+        
+
+
+         if (fromY - Math.floor(fromY) != 0 && (d == 4 || d == 6)) {
             // 縦方向に端数位置にいるときはイベントの後ろに隠れるようにジャンプできる。
             // これは HalfMove.js に合わせた仕様。不都合があればこの if 自体削除する。
-        }
-        else {
-            if (this.isCollidedWithCharacters(x2, y2)) {
-                // 移動先にキャラクターがいる
-                return false;
-            }
-        }
+         }
+         else {
+            
+         }
 
         /*
         if (x - Math.floor(x) != 0 || y - Math.floor(y) != 0) {
@@ -240,7 +340,7 @@
         }
         */
 
-        return true;
+        return new MovingResult(true, toX, toY);
     }
 
     Game_CharacterBase.prototype.canPassJumpGroove = function(x, y, d) {
