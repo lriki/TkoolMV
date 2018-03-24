@@ -67,17 +67,32 @@
 
     // ちなみにこれ系の "round" は マップのループ対応のための繰り返し
     Game_Map.prototype.roundXWithDirectionLong = function(x, d, len) {
+        var ic = Math.floor(len);
         var dx = this.roundXWithDirection(x, d);
-        for (var i = 0; i < len - 1; i++) {
+        for (var i = 0; i < ic - 1; i++) {
             dx = this.roundXWithDirection(dx, d);
+        }
+
+        // 端数分の処理
+        var f = len - Math.floor(len);
+        if (f > 0) {
+            dx += this.roundXWithDirection(0, d) * f;
         }
         return dx;
     };
     
     Game_Map.prototype.roundYWithDirectionLong = function(y, d, len) {
+        var ic = Math.floor(len);
         var dy = this.roundYWithDirection(y, d);
-        for (var i = 0; i < len - 1; i++) {
+        for (var i = 0; i < ic - 1; i++) {
             dy = this.roundYWithDirection(dy, d);
+        }
+
+        // 端数分の処理
+        var f = len - Math.floor(len);
+        console.log("calc dir ", y, len, dy, f);
+        if (f > 0) {
+            dy += this.roundYWithDirection(0, d) * f;
         }
         return dy;
     };
@@ -175,7 +190,7 @@
 
     var _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
     Game_CharacterBase.prototype.moveStraight = function(d) {
-
+        console.log("moveStraight");
         if (this.ridding()) {
             // 何かのオブジェクトに乗っている。
             // オリジナルの処理を含め、元の移動処理は行わない。
@@ -264,82 +279,94 @@
         var x2 = Math.round($gameMap.roundXWithDirectionLong(x, d, 2));
         var y2 = Math.round($gameMap.roundYWithDirectionLong(y, d, 2));
 
-        if (MovingHelper.isHalfStepX(this) &&
-            (d == 2 || d == 8)) {
-            // 半歩状態での上下移動は、移動先隣接2タイルをチェックする。
-            // 両方移動可能ならOK
+        if (d == 2 || d == 8) {
+            var nearYOffset = y - Math.floor(y);
+            var jumpLen = 2 - nearYOffset;
 
-            var ax1 = Math.floor(x);
-            var ay1 = Math.floor(y);
-            var ax2 = Math.floor($gameMap.roundXWithDirectionLong(x, d, 2));
-            var ay2 = Math.floor($gameMap.roundYWithDirectionLong(y + 1.0, d, 2));
+            if (MovingHelper.isHalfStepX(this)) {
+                // X半歩状態での上下移動は、移動先隣接2タイルをチェックする。
+                // 両方移動可能ならOK
+    
+                var r1 = this.checkJumpGroundToGroundInternal(x - 1.0, y, d, jumpLen);
+                var r2 = this.checkJumpGroundToGroundInternal(x, y, d, jumpLen);
+    
+                if (!r1.pass() || !r2.pass()) {
+                    return new MovingResult(false);
+                }
+    
+                return r2;
+            }
 
-            var r1 = this.checkJumpGroundToGroundInternal(x1, y1, x2, y2, d);
-            var r2 = this.checkJumpGroundToGroundInternal(ax1, ay1, ax2, ay2, d);
-
-            if (!r1.pass() || !r2.pass()) {
+            return this.checkJumpGroundToGroundInternal(x, y, d, jumpLen);
+        }
+        else if (MovingHelper.isHalfStepY(this) && (d == 4 || d == 6)) {
+            // Y半歩状態での左右移動。
+            // シナリオ上とおせんぼに使いたいイベントの後ろへジャンプ移動できてしまう問題の対策。
+            
+            var r1 = this.checkJumpGroundToGroundInternal(x, y, d, 2);
+            if (!r1.pass()) {
+                // 普通に移動できなかった
                 return new MovingResult(false);
             }
-        }
 
-        
-        if (this.isCollidedWithCharacters(x - 2, y)) {
-            console.log("移動先にキャラクターがいる");
-            // 移動先にキャラクターがいる
-            return new MovingResult(false);
-        }
+            var iToX = r1.x();
+            var iToY = Math.ceil(r1.y());
+            if (this.isCollidedWithCharacters(iToX, iToY)) {
+                // ceil した移動先（+0.5）にキャラクターがいる
 
-        return this.checkJumpGroundToGroundInternal(x1, y1, x2, y2, d);
+                var r2 = this.checkJumpGroundToGroundInternal(Math.round(x), iToY - 1, d, 2);
+                if (!r2.pass()) {
+                    // 移動できなかった
+                    return new MovingResult(false);
+                }
+            }
+
+            return r1;
+        }
+        // else if (MovingHelper.isHalfStepY(this) && (d == 2 || d == 8)) {
+            // Y半歩状態での上下移動
+        // }
+
+        return this.checkJumpGroundToGroundInternal(x, y, d, 2);
 
 
     }
     
     /**
      * 
-     * @param {*} fromX 丸められた現在位置X
-     * @param {*} fromY 丸められた現在位置X
-     * @param {*} toX 丸められた移動先X
-     * @param {*} toY 丸められた移動先Y
+     * @param {*} x 現在位置X(丸めない)
+     * @param {*} y 現在位置Y(丸めない)
      * @param {*} d 現在の向き
+     * @param {*} len 移動量
      */
-    Game_CharacterBase.prototype.checkJumpGroundToGroundInternal = function(fromX, fromY, toX, toY, d) {
-        if (!$gameMap.isValid(toX, toY)) {
+    Game_CharacterBase.prototype.checkJumpGroundToGroundInternal = function(x, y, d, len) {
+        var iFromX = Math.round(x);
+        var iFromY = Math.round(y);
+        var toX = $gameMap.roundXWithDirectionLong(x, d, len);
+        var toY = $gameMap.roundYWithDirectionLong(y, d, len);
+        console.log(y, toY, len);
+        var iToX = Math.round(toX);
+        var iToY = Math.round(toY);
+        if (!$gameMap.isValid(iToX, iToY)) {
             // マップ外
             return new MovingResult(false);
         }
         var d2 = this.reverseDir(d);
-        if ($gameMap.isPassable(fromX, fromY, d) || $gameMap.isPassable(toX, toY, d2))
+        if ($gameMap.isPassable(iFromX, iFromY, d) || $gameMap.isPassable(iToX, iToY, d2))
         {
             // 現在位置から移動できるなら崖ではない。
             // 移動先から手前に移動できるなら崖ではない。
             return new MovingResult(false);
         } 
-        if ($gameMap.checkNotPassageAll(toX, toY))
+        if ($gameMap.checkNotPassageAll(iToX, iToY))
         {
             // 移動先が全方位進入禁止。壁とか。
             return new MovingResult(false);
         }
-        
-
-
-         if (fromY - Math.floor(fromY) != 0 && (d == 4 || d == 6)) {
-            // 縦方向に端数位置にいるときはイベントの後ろに隠れるようにジャンプできる。
-            // これは HalfMove.js に合わせた仕様。不都合があればこの if 自体削除する。
-         }
-         else {
-            
-         }
-
-        /*
-        if (x - Math.floor(x) != 0 || y - Math.floor(y) != 0) {
-            // 中途半端な座標にいるときは、今いる座標にイベントがないかチェック。
-            // ※看板の裏から横にジャンプしたとき、戻ってこれない対策
-            if (this.isCollidedWithCharacters(x1, y1)) {
-                return false;
-            }
+        if (this.isCollidedWithCharacters(toX, toY)) {
+            // 移動先にキャラクターがいる
+            return new MovingResult(false);
         }
-        */
-
         return new MovingResult(true, toX, toY);
     }
 
