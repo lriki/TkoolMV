@@ -181,7 +181,6 @@
         var iFromY = Math.round(y);
         var toX = MovingHelper.roundXWithDirectionLong(x, d, len);
         var toY = MovingHelper.roundYWithDirectionLong(y, d, len);
-        console.log(y, toY, len);
         var iToX = Math.round(toX);
         var iToY = Math.round(toY);
         if (!$gameMap.isValid(iToX, iToY)) {
@@ -207,12 +206,12 @@
         return new MovingResult(true, toX, toY);
     }
 
-    MovingHelper.checkJumpGroundToObject = function(x, y, d) {
+    MovingHelper.checkMoveOrJumpGroundToObject = function(x, y, d, length) {
         var x1 = Math.round(x);
         var y1 = Math.round(y);
         // 移動先座標を求める
-        var new_x = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 2));
-        var new_y = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 2));
+        var new_x = Math.round(MovingHelper.roundXWithDirectionLong(x, d, length));
+        var new_y = Math.round(MovingHelper.roundYWithDirectionLong(y, d, length));
         
         if ($gameMap.isPassable(x1, y1, d)) {
             // 現在位置から移動できるなら崖ではない
@@ -235,6 +234,27 @@
         return null;
     }
 
+    MovingHelper.checkMoveOrJumpObjectToGround = function(character, x, y, d, length) {
+        // ジャンプ先座標を求める
+        var new_x = Math.round(MovingHelper.roundXWithDirectionLong(x, d, length));
+        var new_y = Math.round(MovingHelper.roundYWithDirectionLong(y, d, length));
+        var d2 = character.reverseDir(d);
+        if ($gameMap.isPassable(new_x, new_y, d2)) {
+            // 移動先から手前に移動できるなら崖ではない
+            return false;
+        }
+        if ($gameMap.checkNotPassageAll(new_x, new_y))
+        {
+            // 移動先が全方位進入禁止。壁とか。
+            return false;
+        }
+        if (character.isCollidedWithCharacters(new_x, new_y)) {
+            // 移動先にキャラクターがいる
+            return false;
+        }
+        return true;
+    }
+
     //-----------------------------------------------------------------------------
     // Game_CharacterBase
     // 　
@@ -244,12 +264,13 @@
         _Game_CharacterBase_initMembers.apply(this, arguments);
         this._ridingCharacterId = -1;
         this._ridderCharacterId = -1;
+        this._ridingScreenZPriorityFlag = false;
     }
 
     var _Game_CharacterBase_screenZ = Game_CharacterBase.prototype.screenZ;
     Game_CharacterBase.prototype.screenZ = function() {
         var base = _Game_CharacterBase_screenZ.apply(this, arguments);
-        return base + (this.riddingObject() != null ? 5 : 0);
+        return base + (this._ridingScreenZPriorityFlag ? 5 : 0);
     };
 
     var _Game_CharacterBase_moveStraight = Game_CharacterBase.prototype.moveStraight;
@@ -258,7 +279,9 @@
             // 何かのオブジェクトに乗っている。
             // オリジナルの処理を含め、元の移動処理は行わない。
 
-            if (this.checkJumpObjectToGround(this._x, this._y, d)) {
+            if (this.tryMoveObjectToGround(d)) {
+            }
+            else if (MovingHelper.checkMoveOrJumpObjectToGround(this, this._x, this._y, d, 2)) {
                 this.setMovementSuccess(true);
                 this.getOffFromObject();
                 this.jumpToDir(d, 2, false);
@@ -282,6 +305,8 @@
                 if (this.tryJumpGroundToGround(d)) {
                 }
                 else if (this.tryJumpGroove(d)) {
+                }
+                else if (this.tryMoveGroundToObject(d)) {
                 }
                 else if (this.tryJumpGroundToObject(d)) {
                 }
@@ -319,9 +344,30 @@
         }
         return false;
     }
+
+    Game_CharacterBase.prototype.tryMoveGroundToObject = function(d) {
+        var obj = MovingHelper.checkMoveOrJumpGroundToObject(this._x, this._y, d, 1);
+        if (obj != null) {
+            this.setMovementSuccess(true);
+            // 乗る
+            this.rideToObject(obj);
+            this.moveToDir(d);
+            return true;
+        }
+        return false;
+    }
+    
+    Game_CharacterBase.prototype.tryMoveObjectToGround = function(d) {
+        if (MovingHelper.checkMoveOrJumpObjectToGround(this, this._x, this._y, d, 1)) {
+            this.setMovementSuccess(true);
+            // 降りる
+            this.getOffFromObject();
+            this.moveToDir(d);
+        }
+    }
     
     Game_CharacterBase.prototype.tryJumpGroundToObject = function(d) {
-        var obj = MovingHelper.checkJumpGroundToObject(this._x, this._y, d);
+        var obj = MovingHelper.checkMoveOrJumpGroundToObject(this._x, this._y, d, 2);
         this.setMovementSuccess(obj != null);
         if (this.isMovementSucceeded()) {
             // 乗る
@@ -331,6 +377,13 @@
         }
         return false;
     };
+
+    Game_CharacterBase.prototype.moveToDir = function(d) {
+        this._x = $gameMap.roundXWithDirection(this._x, d);
+        this._y = $gameMap.roundYWithDirection(this._y, d);
+        this._realX = $gameMap.xWithDirection(this._x, this.reverseDir(d));
+        this._realY = $gameMap.yWithDirection(this._y, this.reverseDir(d));
+    }
 
     // 方向と距離を指定してジャンプ開始
     Game_CharacterBase.prototype.jumpToDir = function(d, len, toObj) {
@@ -497,26 +550,6 @@
     
     
     
-    Game_CharacterBase.prototype.checkJumpObjectToGround = function(x, y, d) {
-        // ジャンプ先座標を求める
-        var new_x = Math.round(MovingHelper.roundXWithDirectionLong(x, d, 2));
-        var new_y = Math.round(MovingHelper.roundYWithDirectionLong(y, d, 2));
-        var d2 = this.reverseDir(d);
-        if ($gameMap.isPassable(new_x, new_y, d2)) {
-            // 移動先から手前に移動できるなら崖ではない
-            return false;
-        }
-        if ($gameMap.checkNotPassageAll(new_x, new_y))
-        {
-            // 移動先が全方位進入禁止。壁とか。
-            return false;
-        }
-        if (this.isCollidedWithCharacters(new_x, new_y)) {
-            // 移動先にキャラクターがいる
-            return false;
-        }
-        return true;
-    }
 
     Game_CharacterBase.prototype.checkJumpObjectToObject = function(x, y, d) {
         // ジャンプ先座標を求める
@@ -553,6 +586,7 @@
 
     
     Game_CharacterBase.prototype.rideToObject = function(riddenObject) {
+        this._ridingScreenZPriorityFlag = true;
         this._ridingCharacterId = riddenObject.gsObjectId();
         riddenObject._ridderCharacterId = this.gsObjectId();
     };
@@ -568,12 +602,13 @@
     
     var _Game_CharacterBase_updateMove = Game_CharacterBase.prototype.updateMove;
     Game_CharacterBase.prototype.updateMove = function() {
-        //var oldm = this.isMoving();
+        var oldMovint = this.isMoving();
+
         _Game_CharacterBase_updateMove.apply(this, arguments);
-        //if (!this.isMoving() && oldm != this.isMoving())
-        //{
-        //    console.log("stop");
-       // }
+
+        if (this.riddingObject() == null && !this.isMoving() && oldMovint != this.isMoving()) {
+            this._ridingScreenZPriorityFlag = false;
+        }
     };
 
     
